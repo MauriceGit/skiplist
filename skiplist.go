@@ -157,42 +157,6 @@ func (t *SkipList) Insert(e ListElement) {
     }
 }
 
-func (localRoot *SkipListElement) findRec(e ListElement, height int) (*SkipListElement, bool) {
-
-    next := localRoot.array[height].next
-    if next != nil && next.value.Compare(e) <= 0 {
-        return next.findRec(e, height)
-    }
-
-    if localRoot.value.Compare(e) == 0 {
-        return localRoot, true
-    }
-
-    if height > 0 {
-        return localRoot.findRec(e, height-1)
-    }
-
-    return nil, false
-
-}
-
-func (t *SkipList) Find2(e ListElement) (*SkipListElement, bool) {
-    if t.isEmpty() {
-        return nil, false
-    }
-
-    entryIndex := 0
-    // Find good entry point so we don't accidently skip half the list.
-    for i := t.maxLevel; i >= 0; i-- {
-        if t.levels[i] != nil && t.levels[i].value.Compare(e) <= 0 {
-            entryIndex = i
-            break
-        }
-    }
-
-    return t.levels[entryIndex].findRec(e, entryIndex)
-}
-
 func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
     if t.isEmpty() {
         return nil, false
