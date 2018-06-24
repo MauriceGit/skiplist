@@ -215,7 +215,7 @@ func (t *SkipList) Delete(e ListElement) {
                 next.array[i].prev = prev
             }
 
-            if e.Compare(t.levels[i].value) == 0 {
+            if t.levels[i] == elem {
                 t.levels[i] = next
                 if next == nil {
                     // reduce the maximum entry position!
