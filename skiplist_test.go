@@ -5,7 +5,6 @@ import (
     "time"
     "testing"
     "math/rand"
-    //"strconv"
     "github.com/pkg/profile"
 )
 
@@ -75,11 +74,7 @@ func TestBenchmarkSearchEnd(t *testing.T) {
     list := New()
 
     for i := 0; i < g_maxN; i++ {
-        //fmt.Printf("Insert: %d\n", i)
         list.Insert(Element{i})
-
-
-
     }
 
     defer timeTrack(time.Now(), g_maxN, "mtSearchEnd")
@@ -129,6 +124,72 @@ func TestFind(t *testing.T) {
     }
 }
 
+func TestFindGreaterOrEqual(t *testing.T) {
+    list := New()
+
+    for i := 0; i < g_maxN; i++ {
+        if  i != 45 &&
+            i != 46 &&
+            i != 47 &&
+            i != 48 &&
+            i != 6006 &&
+            i != 6007 &&
+            i != 6001 &&
+            i != 6003 {
+            list.Insert(Element{i})
+        }
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element{44}); ok {
+        if e.value.(Element).E != 44 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element{45}); ok {
+        if e.value.(Element).E != 49 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element{47}); ok {
+        if e.value.(Element).E != 49 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element{6006}); ok {
+        if e.value.(Element).E != 6008 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element{6001}); ok {
+        if e.value.(Element).E != 6002 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element{6002}); ok {
+        if e.value.(Element).E != 6002 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+}
+
 func TestDelete(t *testing.T) {
 
 
@@ -154,7 +215,7 @@ func TestInsertRandom(t *testing.T) {
     defer profile.Start(profile.CPUProfile).Stop()
     list := New()
 
-    rList := rand.Perm(g_maxN)
+    rList := rand.Perm(g_maxN/2)
     for _,e := range rList {
         list.Insert(Element{e})
     }
