@@ -47,22 +47,38 @@ type SkipListPointer struct {
     next *SkipListElement
 }
 
+type Backtrack struct {
+    node    *SkipListElement
+    level   int
+}
+
 type SkipListElement struct {
     array       []SkipListPointer
     level       int
     value       ListElement
+
+
+    // Unrolled Linked-List:
+    //values      [5]ListElement
+    //valueCount  int
+    // Later experiment with caching the minimum and maximum element for faster comparison
+    // when searching or inserting.
+    //minIndex    int
+    //maxIndex    int
+
 }
 
 type SkipList struct {
     levels              [25]*SkipListElement
+    backtrack           []Backtrack
     maxNewLevel         int
-    maxLevel       int
+    maxLevel            int
 }
 
 // Package initialization
 func init() {
     seed := time.Now().UTC().UnixNano()
-    seed = 1529743902965759434
+    //seed = 1529743902965759434
     fmt.Printf("seed: %v\n", seed)
     rand.Seed(seed)
 }
@@ -79,7 +95,12 @@ func generateLevel(maxLevel int) int {
 }
 
 func New() SkipList {
-    return SkipList{[25]*SkipListElement{}, 25, 0}
+    return SkipList{
+        levels:         [25]*SkipListElement{},
+        backtrack:      make([]Backtrack, 25),
+        maxNewLevel:    25,
+        maxLevel:       0,
+    }
 }
 
 func (t *SkipList) isEmpty() bool {
@@ -113,10 +134,14 @@ func (localRoot *SkipListElement) insertRec(e *SkipListElement, height, level in
     }
 }
 
-func (t *SkipList) Insert(e ListElement) {
+func (t *SkipList) Insert2(e ListElement) {
 
     level := generateLevel(t.maxNewLevel)
-    elem  := &SkipListElement{make([]SkipListPointer, level+1, level+1), level, e}
+    elem  := &SkipListElement{
+                array: make([]SkipListPointer, level+1, level+1),
+                level: level,
+                value: e,
+            }
 
 
     newFirst := true
@@ -157,10 +182,13 @@ func (t *SkipList) Insert(e ListElement) {
     }
 }
 
-func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
+// returns: found element, backtracking list: Includes the elements from the entry point down to the element (or possible insertion position)!, ok, if an element was found
+func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBackTrack bool) (*SkipListElement, *[]Backtrack, int, bool) {
     if t.isEmpty() {
-        return nil, false
+        return nil, nil, 0, false
     }
+
+    btCount := 0
 
     index := 0
     // Find good entry point so we don't accidently skip half the list.
@@ -177,7 +205,7 @@ func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
 
     for {
         if currCompare == 0 {
-            return currentNode, true
+            return currentNode, &t.backtrack, btCount, true
         }
 
         nextNode := currentNode.array[index].next
@@ -186,19 +214,41 @@ func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
             currCompare = nextCompare
         }
 
+        // Which direction are we continuing next time?
         if nextNode != nil && nextCompare <= 0 {
+            // Go right
             currentNode = nextNode
         } else {
+            if createBackTrack {
+                t.backtrack[btCount].node = currentNode
+                t.backtrack[btCount].level = index
+                btCount++
+            }
             if index > 0 {
+                // Go down
                 index--
             } else {
-                return nil, false
+                // Element is not found and we reached the bottom.
+                if findGreaterOrEqual {
+                    return nextNode, &t.backtrack, btCount, nextNode != nil
+                } else {
+                    return nil, &t.backtrack, btCount, false
+                }
             }
         }
     }
 
-    return nil, false
+    return nil, nil, 0, false
+}
 
+func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
+    l, _, _, ok := t.findExtended(e, false, false)
+    return l, ok
+}
+
+func (t *SkipList) FindGreaterOrEqual(e ListElement) (*SkipListElement, bool) {
+    l, _, _, ok := t.findExtended(e, true, false)
+    return l, ok
 }
 
 func (t *SkipList) Delete(e ListElement) {
@@ -224,6 +274,66 @@ func (t *SkipList) Delete(e ListElement) {
             }
         }
     }
+}
+
+func (t *SkipList) Insert(e ListElement) {
+
+    level := generateLevel(t.maxNewLevel)
+    elem  := &SkipListElement{
+                array: make([]SkipListPointer, level+1, level+1),
+                level: level,
+                value: e,
+            }
+
+    newFirst := true
+    if !t.isEmpty() {
+        newFirst = t.levels[0].value.Compare(e) > 0
+    }
+
+    // Insertion using Find()
+    if !newFirst {
+        // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
+        _, backtrack, btCount, _ := t.findExtended(e, true, true)
+
+        //leafNode := (*backtrack)[btCount-1].node
+
+
+        for i := btCount-1; i >= 0; i-- {
+
+            bt := (*backtrack)[i]
+
+            if bt.level > elem.level {
+                break
+            }
+
+            oldNext := bt.node.array[bt.level].next
+            if oldNext != nil {
+                oldNext.array[bt.level].prev = elem
+            }
+            elem.array[bt.level].next = oldNext
+            elem.array[bt.level].prev = bt.node
+            bt.node.array[bt.level].next = elem
+        }
+    }
+
+    if level > t.maxLevel {
+        t.maxLevel = level
+    }
+
+    // Where we have a left-most position that needs to be referenced!
+    for  i := level; i >= 0; i-- {
+        if newFirst || elem.array[i].prev == nil {
+            if t.levels[i] != nil {
+                t.levels[i].array[i].prev = elem
+            }
+            elem.array[i].next = t.levels[i]
+            t.levels[i] = elem
+
+        } else {
+            break
+        }
+    }
+
 }
 
 func (t *SkipList) PrettyPrint() {
