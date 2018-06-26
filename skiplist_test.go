@@ -240,6 +240,32 @@ func TestInsertRandom(t *testing.T) {
 
 // Delete and Insert based on search:
 // 12.916s
+// mtInserts: 476
+// mtWorstInserts: 806
+// mtAvgSearch: 510
+// mtSearchEnd: 318
+// mtDelete: 279
+// mtWorstDelete: 421
+// --- PASS: TestBenchmarkWorstDelete (1.15s)
+// --- PASS: TestFind (1.33s)
+// --- PASS: TestFindGreaterOrEqual (0.73s)
+// --- PASS: TestDelete (1.10s)
+// --- PASS: TestInsertRandom (3.91s)
+// PASS
+// ok   skiplist    12.916s
+
 
 // Search finger introduced based on last insert/delete:
 // 14.486s
+// mtInserts: 497
+// mtWorstInserts: 823
+// mtAvgSearch: 753
+// mtSearchEnd: 82
+// mtDelete: 512
+// mtWorstDelete: 633
+// --- PASS: TestBenchmarkWorstDelete (1.38s)
+// --- PASS: TestFind (1.54s)
+// --- PASS: TestFindGreaterOrEqual (0.81s)
+// --- PASS: TestDelete (1.30s)
+// --- PASS: TestInsertRandom (4.41s)
+// ok   skiplist    14.486s
