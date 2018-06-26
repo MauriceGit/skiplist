@@ -68,6 +68,7 @@ func TestBenchmarkAvgSearch(t *testing.T) {
 
     for i := 0; i < g_maxN; i++ {
         list.Find(Element{i})
+        //fmt.Printf("Find(%v) == %v, %v\n", i, ok, elem)
     }
 }
 func TestBenchmarkSearchEnd(t *testing.T) {
@@ -234,3 +235,11 @@ func TestInsertRandom(t *testing.T) {
         t.Fail()
     }
 }
+
+
+
+// Delete and Insert based on search:
+// 12.916s
+
+// Search finger introduced based on last insert/delete:
+// 14.486s

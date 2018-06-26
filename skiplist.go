@@ -71,6 +71,7 @@ type SkipListElement struct {
 type SkipList struct {
     levels              [25]*SkipListElement
     backtrack           []Backtrack
+    lastBacktrackCount  int
     maxNewLevel         int
     maxLevel            int
 }
@@ -78,7 +79,7 @@ type SkipList struct {
 // Package initialization
 func init() {
     seed := time.Now().UTC().UnixNano()
-    //seed = 1529743902965759434
+    //seed = 1530040158521478743
     fmt.Printf("seed: %v\n", seed)
     rand.Seed(seed)
 }
@@ -96,10 +97,11 @@ func generateLevel(maxLevel int) int {
 
 func New() SkipList {
     return SkipList{
-        levels:         [25]*SkipListElement{},
-        backtrack:      make([]Backtrack, 25),
-        maxNewLevel:    25,
-        maxLevel:       0,
+        levels:             [25]*SkipListElement{},
+        backtrack:          make([]Backtrack, 25),
+        lastBacktrackCount: 0,
+        maxNewLevel:        25,
+        maxLevel:           0,
     }
 }
 
@@ -107,79 +109,48 @@ func (t *SkipList) isEmpty() bool {
     return t.levels[0] == nil
 }
 
-func (localRoot *SkipListElement) insertRec(e *SkipListElement, height, level int) {
+// Uses the already filled backtrack slice to determine a better initial starting position to go down later.
+// backtrack slice HAS to be filled beforehand!
+// Returns a Skip list element and the index where a normal search should start!
+// One big advantage is, that we can skip all level marching and will just go to the top of a node directly!!!
+func (t *SkipList) useSearchFingerForEntry(e ListElement) (*SkipListElement, int, bool) {
 
-    // Next one is not overshot -- We go right!
-    next := localRoot.array[height].next
-    if next != nil && next.value.Compare(e.value) < 0 {
-        next.insertRec(e, height, level)
-        return
-    }
+    // Update: Use the existing backtrack-Slice and go up backwards.
+    // When we are right of the element:
+    //      Maybe, for each element, check the .prev. If it is <= our element, go there instead and Stop!
+    // When we are left of the element: Go up then right as much as possible. As soon as .next is >= our element, Stop!
 
-    oldNext := localRoot.array[height].next
+    node  := t.backtrack[t.lastBacktrackCount-1].node
+    level := 0
 
-    // Our level is now the same as height. So we have to squeeze our new SkipListElement in between.
-    if level >= height && (oldNext == nil || e.value.Compare(oldNext.value) < 0) {
+    goLeft := e.Compare(node.value) < 0
 
-        if oldNext != nil {
-            oldNext.array[height].prev = e
-        }
-        e.array[height].next = oldNext
-        e.array[height].prev = localRoot
-        localRoot.array[height].next = e
-    }
+    for i := t.lastBacktrackCount-1; i >= 0; i-- {
 
-    if height > 0 {
-        localRoot.insertRec(e, height-1, level)
-    }
-}
+        node  = t.backtrack[i].node
+        level = t.backtrack[i].level
 
-func (t *SkipList) Insert2(e ListElement) {
-
-    level := generateLevel(t.maxNewLevel)
-    elem  := &SkipListElement{
-                array: make([]SkipListPointer, level+1, level+1),
-                level: level,
-                value: e,
+        // We found a good starting point for either direction :)
+        if goLeft {
+            // No way left or we passed our element.
+            if node.array[level].prev != nil {
+                if e.Compare(node.array[level].prev.value) >= 0 {
+                    return node.array[level].prev, level, true
+                }
+            } else {
+                return node, level, false
             }
-
-
-    newFirst := true
-    if !t.isEmpty() {
-        newFirst = t.levels[0].value.Compare(e) > 0
-    }
-    entryIndex := t.maxLevel
-    // Find good entry point so we don't accidently skip half the list.
-    if !newFirst {
-        for i := t.maxLevel; i >= 0; i-- {
-            if t.levels[i] != nil && t.levels[i].value.Compare(e) < 0 {
-                entryIndex = i
-                break
-            }
-        }
-
-        if !t.isEmpty() {
-            t.levels[entryIndex].insertRec(elem, entryIndex, level)
-        }
-    }
-
-    if level > t.maxLevel {
-        t.maxLevel = level
-    }
-
-    // Where we have a left-most position that needs to be referenced!
-    for  i := level; i >= 0; i-- {
-        if newFirst || elem.array[i].prev == nil {
-            if t.levels[i] != nil {
-                t.levels[i].array[i].prev = elem
-            }
-            elem.array[i].next = t.levels[i]
-            t.levels[i] = elem
-
         } else {
-            break
+            // No way left or we passed our element.
+            if node.array[level].next == nil || e.Compare(node.array[level].next.value) <= 0 {
+                return node, level, true
+            }
         }
     }
+
+    // We are probably back at the top, meaning - The element we look for is most likely not in our tree...
+    // No, definitely not.
+    return node, level, false
 }
 
 // returns: found element, backtracking list: Includes the elements from the entry point down to the element (or possible insertion position)!, ok, if an element was found
@@ -191,14 +162,33 @@ func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBa
     btCount := 0
 
     index := 0
-    // Find good entry point so we don't accidently skip half the list.
-    for i := t.maxLevel; i >= 0; i-- {
-        if t.levels[i] != nil && t.levels[i].value.Compare(e) <= 0 {
+    var currentNode *SkipListElement = nil
+
+    useSearchFinger := false
+
+    // Use the search finger for a good starting point entry.
+    // We can't use the backtrack and create one at the same time (especially because we go wrong paths).
+    if t.lastBacktrackCount >= 1 && !createBackTrack {
+        n, i, ok := t.useSearchFingerForEntry(e)
+        // We know, that the element we look for is NOT in in the skiplist.
+        // We can only return early here because we will not use this now for a delete or an insert. And find is finished.
+        if ok {
+            currentNode = n
             index = i
-            break
+            useSearchFinger = true
         }
     }
-    currentNode := t.levels[index]
+
+    if !useSearchFinger {
+        // Find good entry point so we don't accidently skip half the list.
+        for i := t.maxLevel; i >= 0; i-- {
+            if t.levels[i] != nil && t.levels[i].value.Compare(e) <= 0 {
+                index = i
+                break
+            }
+        }
+        currentNode = t.levels[index]
+    }
 
     currCompare := currentNode.value.Compare(e)
     nextCompare := 0
@@ -292,11 +282,14 @@ func (t *SkipList) Insert(e ListElement) {
 
     // Insertion using Find()
     if !newFirst {
+
+        // Using the search-finger approach, if
+
+
         // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
         _, backtrack, btCount, _ := t.findExtended(e, true, true)
-
-        //leafNode := (*backtrack)[btCount-1].node
-
+        // So we can use this backtrack the next time we look for an insertion position!
+        t.lastBacktrackCount = btCount
 
         for i := btCount-1; i >= 0; i-- {
 
