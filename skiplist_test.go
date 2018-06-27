@@ -61,7 +61,9 @@ func TestBenchmarkAvgSearch(t *testing.T) {
     list := New()
 
     for i := 0; i < g_maxN; i++ {
+
         list.Insert(Element{i})
+
     }
 
     defer timeTrack(time.Now(), g_maxN, "mtAvgSearch")

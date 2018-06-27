@@ -69,7 +69,8 @@ type SkipListElement struct {
 }
 
 type SkipList struct {
-    levels              [25]*SkipListElement
+    startLevels         [25]*SkipListElement
+    endLevels           [25]*SkipListElement
     backtrack           []Backtrack
     lastBacktrackCount  int
     maxNewLevel         int
@@ -79,7 +80,7 @@ type SkipList struct {
 // Package initialization
 func init() {
     seed := time.Now().UTC().UnixNano()
-    //seed = 1530040158521478743
+    seed = 1530076445104807822
     fmt.Printf("seed: %v\n", seed)
     rand.Seed(seed)
 }
@@ -97,7 +98,8 @@ func generateLevel(maxLevel int) int {
 
 func New() SkipList {
     return SkipList{
-        levels:             [25]*SkipListElement{},
+        startLevels:        [25]*SkipListElement{},
+        endLevels:          [25]*SkipListElement{},
         backtrack:          make([]Backtrack, 25),
         lastBacktrackCount: 0,
         maxNewLevel:        25,
@@ -106,7 +108,7 @@ func New() SkipList {
 }
 
 func (t *SkipList) isEmpty() bool {
-    return t.levels[0] == nil
+    return t.startLevels[0] == nil
 }
 
 // Uses the already filled backtrack slice to determine a better initial starting position to go down later.
@@ -168,26 +170,26 @@ func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBa
 
     // Use the search finger for a good starting point entry.
     // We can't use the backtrack and create one at the same time (especially because we go wrong paths).
-    if t.lastBacktrackCount >= 1 && !createBackTrack {
-        n, i, ok := t.useSearchFingerForEntry(e)
-        // We know, that the element we look for is NOT in in the skiplist.
-        // We can only return early here because we will not use this now for a delete or an insert. And find is finished.
-        if ok {
-            currentNode = n
-            index = i
-            useSearchFinger = true
-        }
-    }
+    //if t.lastBacktrackCount >= 1 && !createBackTrack {
+    //    n, i, ok := t.useSearchFingerForEntry(e)
+    //    // We know, that the element we look for is NOT in in the skiplist.
+    //    // We can only return early here because we will not use this now for a delete or an insert. And find is finished.
+    //    if ok {
+    //        currentNode = n
+    //        index = i
+    //        useSearchFinger = true
+    //    }
+    //}
 
     if !useSearchFinger {
         // Find good entry point so we don't accidently skip half the list.
         for i := t.maxLevel; i >= 0; i-- {
-            if t.levels[i] != nil && t.levels[i].value.Compare(e) <= 0 {
+            if t.startLevels[i] != nil && t.startLevels[i].value.Compare(e) <= 0 {
                 index = i
                 break
             }
         }
-        currentNode = t.levels[index]
+        currentNode = t.startLevels[index]
     }
 
     currCompare := currentNode.value.Compare(e)
@@ -255,12 +257,15 @@ func (t *SkipList) Delete(e ListElement) {
                 next.array[i].prev = prev
             }
 
-            if t.levels[i] == elem {
-                t.levels[i] = next
+            if t.startLevels[i] == elem {
+                t.startLevels[i] = next
                 if next == nil {
                     // reduce the maximum entry position!
                     t.maxLevel = i-1
                 }
+            }
+            if t.endLevels[i] == elem {
+                t.endLevels[i] = prev
             }
         }
     }
@@ -276,15 +281,14 @@ func (t *SkipList) Insert(e ListElement) {
             }
 
     newFirst := true
+    newLast := true
     if !t.isEmpty() {
-        newFirst = t.levels[0].value.Compare(e) > 0
+        newFirst = e.Compare(t.startLevels[0].value) < 0
+        newLast = e.Compare(t.endLevels[0].value) > 0
     }
 
     // Insertion using Find()
-    if !newFirst {
-
-        // Using the search-finger approach, if
-
+    if !newFirst && !newLast {
 
         // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
         _, backtrack, btCount, _ := t.findExtended(e, true, true)
@@ -315,14 +319,36 @@ func (t *SkipList) Insert(e ListElement) {
 
     // Where we have a left-most position that needs to be referenced!
     for  i := level; i >= 0; i-- {
-        if newFirst || elem.array[i].prev == nil {
-            if t.levels[i] != nil {
-                t.levels[i].array[i].prev = elem
-            }
-            elem.array[i].next = t.levels[i]
-            t.levels[i] = elem
 
-        } else {
+        didSomething := false
+
+        if newFirst || elem.array[i].prev == nil && t.startLevels[i] == nil {
+
+            if newFirst {
+                if t.startLevels[i] != nil {
+                    t.startLevels[i].array[i].prev = elem
+                }
+                elem.array[i].next = t.startLevels[i]
+            }
+
+            t.startLevels[i] = elem
+            didSomething = true
+        }
+
+        if newLast || elem.array[i].next == nil && t.endLevels[i] == nil {
+
+            if newLast {
+                if t.endLevels[i] != nil {
+                    t.endLevels[i].array[i].next = elem
+                }
+                elem.array[i].prev = t.endLevels[i]
+            }
+
+            t.endLevels[i] = elem
+            didSomething = true
+        }
+
+        if !didSomething {
             break
         }
     }
@@ -331,20 +357,20 @@ func (t *SkipList) Insert(e ListElement) {
 
 func (t *SkipList) PrettyPrint() {
 
-    fmt.Printf("--> ")
-    for i,l := range t.levels {
+    fmt.Printf(" --> ")
+    for i,l := range t.startLevels {
         next := "---"
         if l != nil {
             next = l.value.String()
         }
-        fmt.Printf("[---|%v]", next)
-        if i < len(t.levels)-1 {
+        fmt.Printf("[%v]    ", next)
+        if i < len(t.startLevels)-1 {
             fmt.Printf(" --> ")
         }
     }
     fmt.Println("")
 
-    node := t.levels[0]
+    node := t.startLevels[0]
     for node != nil {
         fmt.Printf("%v: ", node.value)
         for i,l := range node.array {
@@ -367,5 +393,21 @@ func (t *SkipList) PrettyPrint() {
         fmt.Printf("\n")
         node = node.array[0].next
     }
+
+     fmt.Printf(" --> ")
+    for i,l := range t.endLevels {
+        next := "---"
+        if l != nil {
+            next = l.value.String()
+        }
+        fmt.Printf("[%v]    ", next)
+        if i < len(t.endLevels)-1 {
+            fmt.Printf(" --> ")
+        }
+    }
+    fmt.Println("")
+
     fmt.Printf("\n")
+
+
 }
