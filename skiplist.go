@@ -287,6 +287,8 @@ func (t *SkipList) Insert(e ListElement) {
         newLast = e.Compare(t.endLevels[0].value) > 0
     }
 
+    //fmt.Printf("Insert: %v, newFirst: %v, newLast: %v\n", e, newFirst, newLast)
+
     // Insertion using Find()
     if !newFirst && !newLast {
 
@@ -295,7 +297,10 @@ func (t *SkipList) Insert(e ListElement) {
         // So we can use this backtrack the next time we look for an insertion position!
         t.lastBacktrackCount = btCount
 
-        for i := btCount-1; i >= 0; i-- {
+        //fmt.Printf("  level: %d, btCount: %d\n", elem.level, btCount)
+
+        i := btCount-1
+        for i = btCount-1; i >= 0; i-- {
 
             bt := (*backtrack)[i]
 
@@ -311,42 +316,85 @@ func (t *SkipList) Insert(e ListElement) {
             elem.array[bt.level].prev = bt.node
             bt.node.array[bt.level].next = elem
         }
+
+        // We have the edge case, that the backlog is not large enough.
+        if btCount-1 < elem.level {
+            //fmt.Printf("... %v\n", elem)
+        }
+
     }
 
     if level > t.maxLevel {
         t.maxLevel = level
     }
 
+
+    //fmt.Printf("  Normally inserted: %v, newFirst: %v, newLast: %v\n", normallyInserted, newFirst, newLast)
+
     // Where we have a left-most position that needs to be referenced!
     for  i := level; i >= 0; i-- {
 
         didSomething := false
 
-        if newFirst || elem.array[i].prev == nil && t.startLevels[i] == nil {
+        //fmt.Printf("  %d: %v\n", i, normallyInserted)
 
-            if newFirst {
-                if t.startLevels[i] != nil {
-                    t.startLevels[i].array[i].prev = elem
-                }
-                elem.array[i].next = t.startLevels[i]
+        if newFirst {
+            if t.startLevels[i] != nil {
+                t.startLevels[i].array[i].prev = elem
+            }
+            elem.array[i].next = t.startLevels[i]
+            t.startLevels[i] = elem
+
+            // link the endLevels to this element!
+            if elem.array[i].next == nil {
+                t.endLevels[i] = elem
             }
 
-            t.startLevels[i] = elem
             didSomething = true
         }
 
-        if newLast || elem.array[i].next == nil && t.endLevels[i] == nil {
-
-            if newLast {
+        if newLast {
+            // Places the element after the very last element on this level!
+            if !newFirst {
                 if t.endLevels[i] != nil {
                     t.endLevels[i].array[i].next = elem
                 }
                 elem.array[i].prev = t.endLevels[i]
+                t.endLevels[i] = elem
             }
 
-            t.endLevels[i] = elem
+            // Link the startLevels to this element!
+            if elem.array[i].prev == nil {
+                t.startLevels[i] = elem
+            }
+
             didSomething = true
         }
+
+        // Not the first and not the last element but might still need some connections!
+        if !didSomething {
+
+            // As long as we only insert from the startLevels (and not from both sides!), we only double connect (insert) a level to the left,
+            // never to the right! To the right, there is only the linking from endLevels.
+            if elem.array[i].prev == nil {
+                if t.startLevels[i] != nil {
+                    t.startLevels[i].array[i].prev = elem
+                }
+                elem.array[i].next = t.startLevels[i]
+
+                t.startLevels[i] = elem
+            }
+
+            if elem.array[i].next == nil {
+                t.endLevels[i] = elem
+            }
+
+
+            didSomething = true
+        }
+
+
+
 
         if !didSomething {
             break

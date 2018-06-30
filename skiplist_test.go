@@ -5,7 +5,7 @@ import (
     "time"
     "testing"
     "math/rand"
-    "github.com/pkg/profile"
+    //"github.com/pkg/profile"
 )
 
 
@@ -61,16 +61,16 @@ func TestBenchmarkAvgSearch(t *testing.T) {
     list := New()
 
     for i := 0; i < g_maxN; i++ {
-
+        //fmt.Printf("Insert: %d\n", i)
         list.Insert(Element{i})
-
     }
+
+    //list.PrettyPrint()
 
     defer timeTrack(time.Now(), g_maxN, "mtAvgSearch")
 
     for i := 0; i < g_maxN; i++ {
         list.Find(Element{i})
-        //fmt.Printf("Find(%v) == %v, %v\n", i, ok, elem)
     }
 }
 func TestBenchmarkSearchEnd(t *testing.T) {
@@ -215,16 +215,21 @@ func TestDelete(t *testing.T) {
 
 func TestInsertRandom(t *testing.T) {
 
-    defer profile.Start(profile.CPUProfile).Stop()
+    //defer profile.Start(profile.CPUProfile).Stop()
     list := New()
 
-    rList := rand.Perm(g_maxN/2)
+    rList := rand.Perm(g_maxN)
+
+    defer timeTrack(time.Now(), g_maxN*3, "TestInsertRandom")
+
     for _,e := range rList {
+        //fmt.Printf("Insert %d\n", e)
         list.Insert(Element{e})
+        //list.PrettyPrint()
     }
 
     for _,e := range rList {
-        if e2,ok := list.Find(Element{e}); !ok || e2 == nil {
+        if _,ok := list.Find(Element{e}); !ok {
             t.Fail()
         }
     }
@@ -237,7 +242,6 @@ func TestInsertRandom(t *testing.T) {
         t.Fail()
     }
 }
-
 
 
 // Delete and Insert based on search:
