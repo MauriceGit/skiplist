@@ -289,8 +289,11 @@ func (t *SkipList) Insert(e ListElement) {
 
     //fmt.Printf("Insert: %v, newFirst: %v, newLast: %v\n", e, newFirst, newLast)
 
+    normallyInserted := false
     // Insertion using Find()
     if !newFirst && !newLast {
+
+        normallyInserted = true
 
         // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
         _, backtrack, btCount, _ := t.findExtended(e, true, true)
@@ -338,12 +341,14 @@ func (t *SkipList) Insert(e ListElement) {
 
         //fmt.Printf("  %d: %v\n", i, normallyInserted)
 
-        if newFirst {
-            if t.startLevels[i] != nil {
-                t.startLevels[i].array[i].prev = elem
+        if newFirst || normallyInserted  {
+            if elem.array[i].prev == nil {
+                if t.startLevels[i] != nil {
+                    t.startLevels[i].array[i].prev = elem
+                }
+                elem.array[i].next = t.startLevels[i]
+                t.startLevels[i] = elem
             }
-            elem.array[i].next = t.startLevels[i]
-            t.startLevels[i] = elem
 
             // link the endLevels to this element!
             if elem.array[i].next == nil {
@@ -355,6 +360,7 @@ func (t *SkipList) Insert(e ListElement) {
 
         if newLast {
             // Places the element after the very last element on this level!
+            // This is very important, so we are not linking the very first element (newFirst AND newLast) to itself!
             if !newFirst {
                 if t.endLevels[i] != nil {
                     t.endLevels[i].array[i].next = elem
@@ -370,31 +376,6 @@ func (t *SkipList) Insert(e ListElement) {
 
             didSomething = true
         }
-
-        // Not the first and not the last element but might still need some connections!
-        if !didSomething {
-
-            // As long as we only insert from the startLevels (and not from both sides!), we only double connect (insert) a level to the left,
-            // never to the right! To the right, there is only the linking from endLevels.
-            if elem.array[i].prev == nil {
-                if t.startLevels[i] != nil {
-                    t.startLevels[i].array[i].prev = elem
-                }
-                elem.array[i].next = t.startLevels[i]
-
-                t.startLevels[i] = elem
-            }
-
-            if elem.array[i].next == nil {
-                t.endLevels[i] = elem
-            }
-
-
-            didSomething = true
-        }
-
-
-
 
         if !didSomething {
             break
