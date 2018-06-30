@@ -39,6 +39,10 @@ import (
 
 type ListElement interface {
     Compare(e ListElement) int
+    // if this method is not applicable, just return 0.0 or another constant value.
+    // It will not negatively impact the skiplist.
+    // But it might positively impact insertion/deletion/find speed, if we can cheaply extract the key.
+    ExtractValue() float64
     String() string
 }
 
@@ -75,12 +79,14 @@ type SkipList struct {
     lastBacktrackCount  int
     maxNewLevel         int
     maxLevel            int
+    elementCount        int
+    elementSum          float64
 }
 
 // Package initialization
 func init() {
     seed := time.Now().UTC().UnixNano()
-    seed = 1530076445104807822
+    //seed = 1530076445104807822
     fmt.Printf("seed: %v\n", seed)
     rand.Seed(seed)
 }
@@ -104,6 +110,8 @@ func New() SkipList {
         lastBacktrackCount: 0,
         maxNewLevel:        25,
         maxLevel:           0,
+        elementCount:       0,
+        elementSum:         0.0,
     }
 }
 
@@ -156,18 +164,35 @@ func (t *SkipList) useSearchFingerForEntry(e ListElement) (*SkipListElement, int
 }
 
 // returns: found element, backtracking list: Includes the elements from the entry point down to the element (or possible insertion position)!, ok, if an element was found
-func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBackTrack bool) (*SkipListElement, *[]Backtrack, int, bool) {
+func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBackTrack bool) (foundElem *SkipListElement, increasingSearch bool, ok bool) {
+
+
+    foundElem = nil
+    ok = false
+    increasingSearch = true
+
     if t.isEmpty() {
-        return nil, nil, 0, false
+        return
     }
 
-    btCount := 0
+    // Find out, if it makes more sense, to search from the left or the right side!
+    // Lets just test this feature first, when there is no backtrack created. So just for find itself.
+
+    avg := t.elementSum/float64(t.elementCount)
+    if !createBackTrack && e.ExtractValue() > avg {
+        increasingSearch = false
+    }
+
+    if createBackTrack {
+        t.lastBacktrackCount = 0
+    }
 
     index := 0
     var currentNode *SkipListElement = nil
 
-    useSearchFinger := false
 
+
+    useSearchFinger := false
     // Use the search finger for a good starting point entry.
     // We can't use the backtrack and create one at the same time (especially because we go wrong paths).
     //if t.lastBacktrackCount >= 1 && !createBackTrack {
@@ -184,12 +209,23 @@ func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBa
     if !useSearchFinger {
         // Find good entry point so we don't accidently skip half the list.
         for i := t.maxLevel; i >= 0; i-- {
-            if t.startLevels[i] != nil && t.startLevels[i].value.Compare(e) <= 0 {
-                index = i
-                break
+            if increasingSearch {
+                if t.startLevels[i] != nil && t.startLevels[i].value.Compare(e) <= 0 {
+                    index = i
+                    break
+                }
+            } else {
+                if t.endLevels[i] != nil && t.endLevels[i].value.Compare(e) >= 0 {
+                    index = i
+                    break
+                }
             }
         }
-        currentNode = t.startLevels[index]
+        if increasingSearch {
+            currentNode = t.startLevels[index]
+        } else {
+            currentNode = t.endLevels[index]
+        }
     }
 
     currCompare := currentNode.value.Compare(e)
@@ -197,24 +233,30 @@ func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBa
 
     for {
         if currCompare == 0 {
-            return currentNode, &t.backtrack, btCount, true
+            foundElem = currentNode
+            ok = true
+            return
         }
 
         nextNode := currentNode.array[index].next
+        if !increasingSearch {
+            nextNode = currentNode.array[index].prev
+        }
+
         if nextNode != nil {
             nextCompare = nextNode.value.Compare(e)
             currCompare = nextCompare
         }
 
         // Which direction are we continuing next time?
-        if nextNode != nil && nextCompare <= 0 {
+        if nextNode != nil && (increasingSearch && nextCompare <= 0 || !increasingSearch && nextCompare >= 0) {
             // Go right
             currentNode = nextNode
         } else {
             if createBackTrack {
-                t.backtrack[btCount].node = currentNode
-                t.backtrack[btCount].level = index
-                btCount++
+                t.backtrack[t.lastBacktrackCount].node = currentNode
+                t.backtrack[t.lastBacktrackCount].level = index
+                t.lastBacktrackCount++
             }
             if index > 0 {
                 // Go down
@@ -222,28 +264,34 @@ func (t *SkipList) findExtended(e ListElement, findGreaterOrEqual bool, createBa
             } else {
                 // Element is not found and we reached the bottom.
                 if findGreaterOrEqual {
-                    return nextNode, &t.backtrack, btCount, nextNode != nil
+                    foundElem = nextNode
+                    ok = nextNode != nil
+                    return
                 } else {
-                    return nil, &t.backtrack, btCount, false
+                    return
                 }
             }
         }
     }
 
-    return nil, nil, 0, false
+    return
 }
 
 func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
-    l, _, _, ok := t.findExtended(e, false, false)
+    l, _, ok := t.findExtended(e, false, false)
     return l, ok
 }
 
 func (t *SkipList) FindGreaterOrEqual(e ListElement) (*SkipListElement, bool) {
-    l, _, _, ok := t.findExtended(e, true, false)
+    l, _, ok := t.findExtended(e, true, false)
     return l, ok
 }
 
 func (t *SkipList) Delete(e ListElement) {
+
+    // If we can find the first and last element instantly, we don't need special care here!
+    //isFirst := t.startLevels[0].value.Compare(e) == 0
+    //isLast  := t.endLevels[0].value.Compare(e) == 0
 
     if elem,ok := t.Find(e); ok {
         for i := elem.level; i >= 0; i-- {
@@ -268,6 +316,8 @@ func (t *SkipList) Delete(e ListElement) {
                 t.endLevels[i] = prev
             }
         }
+        t.elementCount--
+        t.elementSum -= e.ExtractValue()
     }
 }
 
@@ -279,6 +329,9 @@ func (t *SkipList) Insert(e ListElement) {
                 level: level,
                 value: e,
             }
+
+    t.elementCount++
+    t.elementSum += e.ExtractValue()
 
     newFirst := true
     newLast := true
@@ -296,16 +349,18 @@ func (t *SkipList) Insert(e ListElement) {
         normallyInserted = true
 
         // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
-        _, backtrack, btCount, _ := t.findExtended(e, true, true)
+        // We only care about the backtracking anyway.
+        t.findExtended(e, true, true)
         // So we can use this backtrack the next time we look for an insertion position!
-        t.lastBacktrackCount = btCount
+
+        btCount := t.lastBacktrackCount
 
         //fmt.Printf("  level: %d, btCount: %d\n", elem.level, btCount)
 
         i := btCount-1
         for i = btCount-1; i >= 0; i-- {
 
-            bt := (*backtrack)[i]
+            bt := t.backtrack[i]
 
             if bt.level > elem.level {
                 break
