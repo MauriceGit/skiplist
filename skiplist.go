@@ -37,6 +37,9 @@ import (
     "time"
 )
 
+const (
+    MAX_LEVEL = 16
+)
 
 type ListElement interface {
     ExtractValue() float64
@@ -54,26 +57,16 @@ type Backtrack struct {
 }
 
 type SkipListElement struct {
-    array       [25]SkipListPointer
+    array       [MAX_LEVEL]SkipListPointer
     level       int
     key         float64
     value       ListElement
-
-
-    // Unrolled Linked-List:
-    //values      [5]ListElement
-    //valueCount  int
-    // Later experiment with caching the minimum and maximum element for faster comparison
-    // when searching or inserting.
-    //minIndex    int
-    //maxIndex    int
-
 }
 
 type SkipList struct {
-    startLevels         [25]*SkipListElement
-    endLevels           [25]*SkipListElement
-    backtrack           [25]Backtrack
+    startLevels         [MAX_LEVEL]*SkipListElement
+    endLevels           [MAX_LEVEL]*SkipListElement
+    backtrack           [MAX_LEVEL]Backtrack
     lastBacktrackCount  int
     maxNewLevel         int
     maxLevel            int
@@ -103,11 +96,11 @@ func generateLevel(maxLevel int) int {
 
 func New(eps float64) SkipList {
     return SkipList{
-        startLevels:        [25]*SkipListElement{},
-        endLevels:          [25]*SkipListElement{},
-        backtrack:          [25]Backtrack{},
+        startLevels:        [MAX_LEVEL]*SkipListElement{},
+        endLevels:          [MAX_LEVEL]*SkipListElement{},
+        backtrack:          [MAX_LEVEL]Backtrack{},
         lastBacktrackCount: 0,
-        maxNewLevel:        25,
+        maxNewLevel:        MAX_LEVEL,
         maxLevel:           0,
         elementCount:       0,
         elementSum:         0.0,
@@ -216,10 +209,9 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool, createBack
                 if findGreaterOrEqual {
                     foundElem = nextNode
                     ok = nextNode != nil
-                    return
-                } else {
-                    return
                 }
+                return
+
             }
         }
     }
@@ -236,10 +228,6 @@ func (t *SkipList) FindGreaterOrEqual(e ListElement) (*SkipListElement, bool) {
 }
 
 func (t *SkipList) Delete(e ListElement) {
-
-    // If we can find the first and last element instantly, we don't need special care here!
-    //isFirst := t.startLevels[0].value.Compare(e) == 0
-    //isLast  := t.endLevels[0].value.Compare(e) == 0
 
     if elem,ok := t.Find(e); ok {
         for i := elem.level; i >= 0; i-- {
@@ -272,8 +260,8 @@ func (t *SkipList) Delete(e ListElement) {
 func (t *SkipList) Insert(e ListElement) {
 
     level := generateLevel(t.maxNewLevel)
-    elem  := &SkipListElement{
-                array: [25]SkipListPointer{},
+    elem  := &SkipListElement {
+                array: [MAX_LEVEL]SkipListPointer{},
                 level: level,
                 key:   e.ExtractValue(),
                 value: e,
@@ -289,8 +277,6 @@ func (t *SkipList) Insert(e ListElement) {
         newLast  = elem.key > t.endLevels[0].key
     }
 
-    //fmt.Printf("Insert: %v, newFirst: %v, newLast: %v\n", e, newFirst, newLast)
-
     normallyInserted := false
     // Insertion using Find()
     if !newFirst && !newLast {
@@ -300,11 +286,8 @@ func (t *SkipList) Insert(e ListElement) {
         // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
         // We only care about the backtracking anyway.
         t.findExtended(elem.key, true, true)
-        // So we can use this backtrack the next time we look for an insertion position!
 
         btCount := t.lastBacktrackCount
-
-        //fmt.Printf("  level: %d, btCount: %d\n", elem.level, btCount)
 
         i := btCount-1
         for i = btCount-1; i >= 0; i-- {
@@ -323,27 +306,16 @@ func (t *SkipList) Insert(e ListElement) {
             elem.array[bt.level].prev = bt.node
             bt.node.array[bt.level].next = elem
         }
-
-        // We have the edge case, that the backlog is not large enough.
-        if btCount-1 < elem.level {
-            //fmt.Printf("... %v\n", elem)
-        }
-
     }
 
     if level > t.maxLevel {
         t.maxLevel = level
     }
 
-
-    //fmt.Printf("  Normally inserted: %v, newFirst: %v, newLast: %v\n", normallyInserted, newFirst, newLast)
-
     // Where we have a left-most position that needs to be referenced!
     for  i := level; i >= 0; i-- {
 
         didSomething := false
-
-        //fmt.Printf("  %d: %v\n", i, normallyInserted)
 
         if newFirst || normallyInserted  {
             if elem.array[i].prev == nil {

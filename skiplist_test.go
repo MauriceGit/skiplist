@@ -9,7 +9,7 @@ import (
 )
 
 
-var g_maxN int = 1000000
+var g_maxN int = 3000000
 
 //type Element struct {
 //    E int
@@ -239,7 +239,6 @@ func TestInsertRandom(t *testing.T) {
 
 
 // Delete and Insert based on search:
-// 12.916s
 // mtInserts: 476
 // mtWorstInserts: 806
 // mtAvgSearch: 510
@@ -256,7 +255,6 @@ func TestInsertRandom(t *testing.T) {
 
 
 // Search finger introduced based on last insert/delete:
-// 14.486s
 // mtInserts: 497
 // mtWorstInserts: 823
 // mtAvgSearch: 753
