@@ -5,7 +5,7 @@ import (
     "time"
     "testing"
     "math/rand"
-    //"github.com/pkg/profile"
+    "github.com/pkg/profile"
 )
 
 
@@ -17,16 +17,6 @@ var g_maxN int = 1000000
 
 type Element int
 
-func (e Element) Compare(e2 ListElement) int {
-
-    if e < e2.(Element) {
-        return -1
-    }
-    if e == e2.(Element) {
-        return 0
-    }
-    return 1
-}
 func (e Element) ExtractValue() float64 {
     return float64(e)
 }
@@ -45,7 +35,7 @@ func timeTrack(start time.Time, n int, name string) {
 
 
 func TestBenchmarkInsert(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     defer timeTrack(time.Now(), g_maxN, "mtInserts")
 
@@ -55,7 +45,7 @@ func TestBenchmarkInsert(t *testing.T) {
 
 }
 func TestBenchmarkWorstInsert(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     defer timeTrack(time.Now(), g_maxN, "mtWorstInserts")
 
@@ -64,23 +54,22 @@ func TestBenchmarkWorstInsert(t *testing.T) {
     }
 }
 func TestBenchmarkAvgSearch(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
-        //fmt.Printf("Insert: %d\n", i)
         list.Insert(Element(i))
     }
-
-    //list.PrettyPrint()
 
     defer timeTrack(time.Now(), g_maxN, "mtAvgSearch")
 
     for i := 0; i < g_maxN; i++ {
-        list.Find(Element(i))
+        if _,ok := list.Find(Element(i)); !ok {
+            t.Fail()
+        }
     }
 }
 func TestBenchmarkSearchEnd(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(i))
@@ -93,7 +82,7 @@ func TestBenchmarkSearchEnd(t *testing.T) {
     }
 }
 func TestBenchmarkDelete(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(i))
@@ -106,7 +95,7 @@ func TestBenchmarkDelete(t *testing.T) {
     }
 }
 func TestBenchmarkWorstDelete(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(i))
@@ -120,21 +109,20 @@ func TestBenchmarkWorstDelete(t *testing.T) {
 }
 
 func TestFind(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(i))
     }
     for i := 0; i < g_maxN; i++ {
-
-        if e,ok := list.Find(Element(i)); !ok || e == nil {
+        if _,ok := list.Find(Element(i)); !ok {
             t.Fail()
         }
     }
 }
 
 func TestFindGreaterOrEqual(t *testing.T) {
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
         if  i != 45 &&
@@ -202,7 +190,7 @@ func TestFindGreaterOrEqual(t *testing.T) {
 func TestDelete(t *testing.T) {
 
 
-    list := New()
+    list := New(0.01)
 
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(i))
@@ -221,12 +209,12 @@ func TestDelete(t *testing.T) {
 
 func TestInsertRandom(t *testing.T) {
 
-    //defer profile.Start(profile.CPUProfile).Stop()
-    list := New()
+    defer profile.Start(profile.CPUProfile).Stop()
+    list := New(0.01)
 
     rList := rand.Perm(g_maxN/10)
 
-    defer timeTrack(time.Now(), g_maxN*3, "TestInsertRandom")
+    defer timeTrack(time.Now(), g_maxN/10*3, "TestInsertRandom")
 
     for _,e := range rList {
         //fmt.Printf("Insert %d\n", e)
