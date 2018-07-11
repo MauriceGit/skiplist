@@ -38,17 +38,12 @@ import (
 )
 
 const (
-    MAX_LEVEL = 16
+    MAX_LEVEL = 25
 )
 
 type ListElement interface {
     ExtractValue() float64
     String() string
-}
-
-type SkipListPointer struct {
-    prev *SkipListElement
-    next *SkipListElement
 }
 
 type Backtrack struct {
@@ -57,17 +52,16 @@ type Backtrack struct {
 }
 
 type SkipListElement struct {
-    array       [MAX_LEVEL]SkipListPointer
+    next       [MAX_LEVEL]*SkipListElement
     level       int
     key         float64
     value       ListElement
+    prev        *SkipListElement
 }
 
 type SkipList struct {
     startLevels         [MAX_LEVEL]*SkipListElement
     endLevels           [MAX_LEVEL]*SkipListElement
-    backtrack           [MAX_LEVEL]Backtrack
-    lastBacktrackCount  int
     maxNewLevel         int
     maxLevel            int
     elementCount        int
@@ -78,34 +72,38 @@ type SkipList struct {
 // Package initialization
 func init() {
     seed := time.Now().UTC().UnixNano()
-    //seed = 1530076445104807822
+    seed = 1530734648380737920
     fmt.Printf("seed: %v\n", seed)
     rand.Seed(seed)
 }
 
-func generateLevel(maxLevel int) int {
-    // First we apply some mask which makes sure that we don't get a level
-    // above our desired level. Then we find the first set bit.
-    var x uint64 = rand.Uint64() & ((1 << uint(maxLevel-1)) -1)
-    zeroes := bits.TrailingZeros64(x)
-    if zeroes <= maxLevel {
-        return zeroes
-    }
-    return maxLevel-1
-}
-
 func New(eps float64) SkipList {
-    return SkipList{
+    list := SkipList{
         startLevels:        [MAX_LEVEL]*SkipListElement{},
         endLevels:          [MAX_LEVEL]*SkipListElement{},
-        backtrack:          [MAX_LEVEL]Backtrack{},
-        lastBacktrackCount: 0,
         maxNewLevel:        MAX_LEVEL,
         maxLevel:           0,
         elementCount:       0,
         elementSum:         0.0,
         eps:                eps,
     }
+
+    return list
+}
+
+func (t *SkipList)generateLevel(maxLevel int) int {
+    level := 0
+    // First we apply some mask which makes sure that we don't get a level
+    // above our desired level. Then we find the first set bit.
+    var x uint64 = rand.Uint64() & ((1 << uint(maxLevel-1)) -1)
+    zeroes := bits.TrailingZeros64(x)
+    if zeroes <= maxLevel {
+        level = zeroes
+    } else {
+        level = maxLevel-1
+    }
+
+    return level
 }
 
 func (t *SkipList) isEmpty() bool {
@@ -113,28 +111,78 @@ func (t *SkipList) isEmpty() bool {
 }
 
 // returns: found element, backtracking list: Includes the elements from the entry point down to the element (or possible insertion position)!, ok, if an element was found
-func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool, createBackTrack bool) (foundElem *SkipListElement, ok bool) {
+//func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem *SkipListElement, ok bool) {
+//
+//
+//    foundElem = nil
+//    ok = false
+//
+//    if t.isEmpty() {
+//        return
+//    }
+//
+//    index := 0
+//    var currentNode *SkipListElement = nil
+//
+//    // Find good entry point so we don't accidently skip half the list.
+//    for i := t.maxLevel; i >= 0; i-- {
+//        if t.startLevels[i] != nil && t.startLevels[i].key <= key {
+//            index = i
+//            break
+//        }
+//    }
+//
+//    currentNode = t.startLevels[index]
+//    nextNode := currentNode
+//
+//    for {
+//        if math.Abs(currentNode.key - key) <= t.eps {
+//            foundElem = currentNode
+//            ok = true
+//            return
+//        }
+//
+//        nextNode = currentNode.next[index]
+//
+//        // Which direction are we continuing next time?
+//        if nextNode != nil && nextNode.key <= key {
+//            // Go right
+//            currentNode = nextNode
+//        } else {
+//            if index > 0 {
+//
+//                // Early exit
+//                if currentNode.next[0] != nil && math.Abs(currentNode.next[0].key - key) <= t.eps {
+//                    foundElem = currentNode.next[0]
+//                    ok = true
+//                    return
+//                }
+//
+//                // Go down
+//                index--
+//            } else {
+//                // Element is not found and we reached the bottom.
+//                if findGreaterOrEqual {
+//                    foundElem = nextNode
+//                    ok = nextNode != nil
+//                }
+//                return
+//
+//            }
+//        }
+//    }
+//
+//    return
+//}
+
+func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem *SkipListElement, ok bool) {
 
 
     foundElem = nil
     ok = false
-    increasingSearch := true
 
     if t.isEmpty() {
         return
-    }
-
-    // Find out, if it makes more sense, to search from the left or the right side!
-    // Lets just test this feature first, when there is no backtrack created. So just for find itself.
-    // I decided, that the effect of starting from the right side is nearly non-observable. It only really shows, when we look for one of the
-    // very last elements. So OK for finding but not worth it to use in inserts as it would complicate things a lot!
-    avg := t.elementSum/float64(t.elementCount)
-    if !createBackTrack && key > avg {
-        increasingSearch = false
-    }
-
-    if createBackTrack {
-        t.lastBacktrackCount = 0
     }
 
     index := 0
@@ -142,66 +190,37 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool, createBack
 
     // Find good entry point so we don't accidently skip half the list.
     for i := t.maxLevel; i >= 0; i-- {
-        if increasingSearch {
-            if t.startLevels[i] != nil && t.startLevels[i].key <= key {
-                index = i
-                break
-            }
-        } else {
-            if t.endLevels[i] != nil && t.endLevels[i].key >= key {
-                index = i
-                break
-            }
+        if t.startLevels[i] != nil && t.startLevels[i].key <= key {
+            index = i
+            break
         }
     }
-    if increasingSearch {
-        currentNode = t.startLevels[index]
-    } else {
-        currentNode = t.endLevels[index]
-    }
 
-    currCompare := 1
-    if currentNode.key < key {
-        currCompare = -1
-    } else if math.Abs(currentNode.key - key) <= t.eps {
-        currCompare = 0
-    }
-
-    nextCompare := 0
+    currentNode = t.startLevels[index]
+    nextNode := currentNode
 
     for {
-        if currCompare == 0 {
+        if math.Abs(currentNode.key - key) <= t.eps {
             foundElem = currentNode
             ok = true
             return
         }
 
-        nextNode := currentNode.array[index].next
-        if !increasingSearch {
-            nextNode = currentNode.array[index].prev
-        }
-
-        if nextNode != nil {
-            nextCompare = 1
-            if nextNode.key < key {
-                nextCompare = -1
-            } else if math.Abs(nextNode.key - key) <= t.eps {
-                nextCompare = 0
-            }
-            currCompare = nextCompare
-        }
+        nextNode = currentNode.next[index]
 
         // Which direction are we continuing next time?
-        if nextNode != nil && (increasingSearch && nextCompare <= 0 || !increasingSearch && nextCompare >= 0) {
+        if nextNode != nil && nextNode.key <= key {
             // Go right
             currentNode = nextNode
         } else {
-            if createBackTrack {
-                t.backtrack[t.lastBacktrackCount].node = currentNode
-                t.backtrack[t.lastBacktrackCount].level = index
-                t.lastBacktrackCount++
-            }
             if index > 0 {
+
+                // Early exit
+                if currentNode.next[0] != nil && math.Abs(currentNode.next[0].key - key) <= t.eps {
+                    foundElem = currentNode.next[0]
+                    ok = true
+                    return
+                }
                 // Go down
                 index--
             } else {
@@ -220,48 +239,192 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool, createBack
 }
 
 func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
-    return t.findExtended(e.ExtractValue(), false, false)
+    return t.findExtended(e.ExtractValue(), false)
 }
 
 func (t *SkipList) FindGreaterOrEqual(e ListElement) (*SkipListElement, bool) {
-    return t.findExtended(e.ExtractValue(), true, false)
+    return t.findExtended(e.ExtractValue(), true)
 }
 
 func (t *SkipList) Delete(e ListElement) {
 
-    if elem,ok := t.Find(e); ok {
-        for i := elem.level; i >= 0; i-- {
-            prev := elem.array[i].prev
-            next := elem.array[i].next
+   if t.isEmpty() {
+        return
+    }
 
-            if prev != nil {
-                prev.array[i].next = next
-            }
-            if next != nil {
-                next.array[i].prev = prev
-            }
+    key := e.ExtractValue()
 
-            if t.startLevels[i] == elem {
-                t.startLevels[i] = next
-                if next == nil {
-                    // reduce the maximum entry position!
-                    t.maxLevel = i-1
-                }
-            }
-            if t.endLevels[i] == elem {
-                t.endLevels[i] = prev
+    //isFirst := false
+    //isLast := false
+    //if !t.isEmpty() {
+    //    isFirst = math.Abs(key - t.startLevels[0].key) <= t.eps
+    //    isLast  = math.Abs(key - t.endLevels[0].key  ) <= t.eps
+    //}
+
+    //normallyRemoved := false
+
+    //if !isFirst && !isLast {
+
+        //normallyRemoved = true
+
+        index := 0
+
+        // Find good entry point so we don't accidently skip half the list.
+        for i := t.maxLevel; i >= 0; i-- {
+            if t.startLevels[i] != nil && t.startLevels[i].key <= key {
+                index = i
+                break
             }
         }
-        t.elementCount--
-        t.elementSum -= elem.key
-    }
+
+        var currentNode *SkipListElement = nil
+        nextNode := currentNode
+
+        for {
+
+            if currentNode == nil {
+                nextNode = t.startLevels[index]
+            } else {
+                nextNode = currentNode.next[index]
+            }
+
+            // Found and remove!
+            if nextNode != nil && math.Abs(nextNode.key - key) <= t.eps {
+
+
+                if currentNode != nil {
+                    currentNode.next[index] = nextNode.next[index]
+                }
+
+
+                if index == 0 && nextNode.next[index] != nil {
+                    nextNode.next[index].prev = currentNode
+                }
+
+                // Link from start needs readjustments.
+                if t.startLevels[index] == nextNode {
+                    t.startLevels[index] = nextNode.next[index]
+                    // This was our currently highest node!
+                    if t.startLevels[index] == nil {
+                        t.maxLevel = index -1
+                    }
+                }
+
+                // Link from end needs readjustments.
+                if nextNode.next[index] == nil {
+                    t.endLevels[index] = currentNode
+                }
+                nextNode.next[index] = nil
+            }
+
+            if nextNode != nil && nextNode.key < key {
+                // Go right
+                currentNode = nextNode
+            } else {
+                // Go down
+                index--
+                if index < 0 {
+                    break
+                }
+            }
+        }
+    //}
+
+    // Where we have a left-most position that needs to be referenced!
+    //for  i := level; i >= 0; i-- {
+    //
+    //    didSomething := false
+    //
+    //    if isFirst || normallyRemoved  {
+    //
+    //
+    //        //if elem.next[i].prev == nil {
+    //        if t.startLevels[i] == nil || t.startLevels[i].key > elem.key {
+    //            if i == 0 && t.startLevels[i] != nil {
+    //                t.startLevels[i].prev = elem
+    //            }
+    //            elem.next[i] = t.startLevels[i]
+    //            t.startLevels[i] = elem
+    //        }
+    //
+    //        // link the endLevels to this element!
+    //        if elem.next[i] == nil {
+    //            t.endLevels[i] = elem
+    //        }
+    //
+    //        didSomething = true
+    //    }
+    //
+    //    if isLast {
+    //        // Places the element after the very last element on this level!
+    //        // This is very important, so we are not linking the very first element (newFirst AND newLast) to itself!
+    //        if !isFirst {
+    //            if t.endLevels[i] != nil {
+    //                t.endLevels[i].next[i] = elem
+    //            }
+    //            if i == 0 {
+    //                elem.prev = t.endLevels[i]
+    //            }
+    //            t.endLevels[i] = elem
+    //        }
+    //
+    //        // Link the startLevels to this element!
+    //        //if elem.next[i].prev == nil {
+    //        if t.startLevels[i] == nil || t.startLevels[i].key > elem.key {
+    //            t.startLevels[i] = elem
+    //        }
+    //
+    //        didSomething = true
+    //    }
+    //
+    //    if !didSomething {
+    //        break
+    //    }
+    //}
+
 }
+
+//func (t *SkipList) Delete(e ListElement) {
+//
+//    if elem,ok := t.Find(e); ok {
+//        for i := elem.level; i >= 0; i-- {
+//            prev := elem.next[i].prev
+//            next := elem.next[i].next
+//
+//            if prev != nil {
+//                prev.next[i].next = next
+//            }
+//            if next != nil {
+//                next.next[i].prev = prev
+//            }
+//
+//            if t.startLevels[i] == elem {
+//                t.startLevels[i] = next
+//                if next == nil {
+//                    // reduce the maximum entry position!
+//                    t.maxLevel = i-1
+//                }
+//            }
+//            if t.endLevels[i] == elem {
+//                t.endLevels[i] = prev
+//            }
+//        }
+//        t.elementCount--
+//        t.elementSum -= elem.key
+//    }
+//}
 
 func (t *SkipList) Insert(e ListElement) {
 
-    level := generateLevel(t.maxNewLevel)
+    level := t.generateLevel(t.maxNewLevel)
+
+    // Only grow the height of the skiplist by one at a time!
+    if level > t.maxLevel+1 {
+        level = t.maxLevel+1
+    }
+
     elem  := &SkipListElement {
-                array: [MAX_LEVEL]SkipListPointer{},
+                next: [MAX_LEVEL]*SkipListElement{},
                 level: level,
                 key:   e.ExtractValue(),
                 value: e,
@@ -283,28 +446,55 @@ func (t *SkipList) Insert(e ListElement) {
 
         normallyInserted = true
 
-        // Search for e down to level 1. It will not find anything, but will return a backtrack for insertion.
-        // We only care about the backtracking anyway.
-        t.findExtended(elem.key, true, true)
-
-        btCount := t.lastBacktrackCount
-
-        i := btCount-1
-        for i = btCount-1; i >= 0; i-- {
-
-            bt := t.backtrack[i]
-
-            if bt.level > elem.level {
+        index := 0
+        if level > t.maxLevel {
+            t.maxLevel = level
+        }
+        // Find good entry point so we don't accidently skip half the list.
+        for i := t.maxLevel; i >= 0; i-- {
+            if t.startLevels[i] != nil && t.startLevels[i].key <= elem.key || i <= level {
+                index = i
                 break
             }
+        }
 
-            oldNext := bt.node.array[bt.level].next
-            if oldNext != nil {
-                oldNext.array[bt.level].prev = elem
+        var currentNode *SkipListElement = nil
+        nextNode := t.startLevels[index]
+
+        for {
+
+            if currentNode == nil {
+                nextNode = t.startLevels[index]
+            } else {
+                nextNode = currentNode.next[index]
             }
-            elem.array[bt.level].next = oldNext
-            elem.array[bt.level].prev = bt.node
-            bt.node.array[bt.level].next = elem
+
+            // Connect node to next
+            if index <= level && (nextNode == nil || nextNode.key >= elem.key) {
+                elem.next[index] = nextNode
+                if currentNode != nil {
+                    currentNode.next[index] = elem
+                }
+                //elem.next[index].prev = currentNode
+                //if nextNode != nil {
+                //    nextNode.next[index].prev = elem
+                //}
+                if index == 0 {
+                    elem.prev = currentNode
+                    nextNode.prev = elem
+                }
+            }
+
+            if nextNode != nil && nextNode.key < elem.key {
+                // Go right
+                currentNode = nextNode
+            } else {
+                // Go down
+                index--
+                if index < 0 {
+                    break
+                }
+            }
         }
     }
 
@@ -318,16 +508,19 @@ func (t *SkipList) Insert(e ListElement) {
         didSomething := false
 
         if newFirst || normallyInserted  {
-            if elem.array[i].prev == nil {
-                if t.startLevels[i] != nil {
-                    t.startLevels[i].array[i].prev = elem
+
+
+            //if elem.next[i].prev == nil {
+            if t.startLevels[i] == nil || t.startLevels[i].key > elem.key {
+                if i == 0 && t.startLevels[i] != nil {
+                    t.startLevels[i].prev = elem
                 }
-                elem.array[i].next = t.startLevels[i]
+                elem.next[i] = t.startLevels[i]
                 t.startLevels[i] = elem
             }
 
             // link the endLevels to this element!
-            if elem.array[i].next == nil {
+            if elem.next[i] == nil {
                 t.endLevels[i] = elem
             }
 
@@ -339,14 +532,17 @@ func (t *SkipList) Insert(e ListElement) {
             // This is very important, so we are not linking the very first element (newFirst AND newLast) to itself!
             if !newFirst {
                 if t.endLevels[i] != nil {
-                    t.endLevels[i].array[i].next = elem
+                    t.endLevels[i].next[i] = elem
                 }
-                elem.array[i].prev = t.endLevels[i]
+                if i == 0 {
+                    elem.prev = t.endLevels[i]
+                }
                 t.endLevels[i] = elem
             }
 
             // Link the startLevels to this element!
-            if elem.array[i].prev == nil {
+            //if elem.next[i].prev == nil {
+            if t.startLevels[i] == nil || t.startLevels[i].key > elem.key {
                 t.startLevels[i] = elem
             }
 
@@ -379,15 +575,15 @@ func (t *SkipList) PrettyPrint() {
     for node != nil {
         fmt.Printf("%v: ", node.value)
         for i := 0; i <= node.level; i++ {
-            l := node.array[i]
+            l := node.next[i]
 
             prev := "---"
-            if l.prev != nil {
-                prev = l.prev.value.String()
-            }
+            //if l.prev != nil {
+            //    prev = l.prev.value.String()
+            //}
             next := "---"
-            if l.next != nil {
-                next = l.next.value.String()
+            if l != nil {
+                next = l.value.String()
             }
 
             fmt.Printf("[%v|%v]", prev, next)
@@ -397,7 +593,7 @@ func (t *SkipList) PrettyPrint() {
 
         }
         fmt.Printf("\n")
-        node = node.array[0].next
+        node = node.next[0]
     }
 
      fmt.Printf(" --> ")
