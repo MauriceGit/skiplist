@@ -9,7 +9,7 @@ import (
 )
 
 
-var g_maxN int = 100000
+var g_maxN int = 1000000
 
 //type Element struct {
 //    E int
@@ -37,50 +37,32 @@ func timeTrack(start time.Time, n int, name string) {
 func TestBenchmarkInsert(t *testing.T) {
     list := New(0.01)
 
-    defer timeTrack(time.Now(), g_maxN, "mtInserts")
-
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(g_maxN-i))
+    }
+
+    for i := 0; i < g_maxN; i++ {
+        if _,ok := list.Find(Element(g_maxN-i)); !ok {
+            t.Fail()
+        }
     }
 
 }
 func TestBenchmarkWorstInsert(t *testing.T) {
     list := New(0.01)
 
-    defer timeTrack(time.Now(), g_maxN, "mtWorstInserts")
-
     for i := 0; i < g_maxN; i++ {
         list.Insert(Element(i))
     }
-}
-func TestBenchmarkAvgSearch(t *testing.T) {
-    list := New(0.01)
-
-    for i := 0; i < g_maxN; i++ {
-        list.Insert(Element(i))
-    }
-
-    defer timeTrack(time.Now(), g_maxN, "mtAvgSearch")
 
     for i := 0; i < g_maxN; i++ {
         if _,ok := list.Find(Element(i)); !ok {
             t.Fail()
         }
     }
+
 }
-func TestBenchmarkSearchEnd(t *testing.T) {
-    list := New(0.01)
 
-    for i := 0; i < g_maxN; i++ {
-        list.Insert(Element(i))
-    }
-
-    defer timeTrack(time.Now(), g_maxN, "mtSearchEnd")
-
-    for i := 0; i < g_maxN; i++ {
-        list.Find(Element(g_maxN-1))
-    }
-}
 func TestBenchmarkDelete(t *testing.T) {
     list := New(0.01)
 
@@ -88,10 +70,12 @@ func TestBenchmarkDelete(t *testing.T) {
         list.Insert(Element(i))
     }
 
-    defer timeTrack(time.Now(), g_maxN, "mtDelete")
-
     for i := 0; i < g_maxN; i++ {
         list.Delete(Element(i))
+    }
+
+    if !list.isEmpty() {
+        t.Fail()
     }
 }
 func TestBenchmarkWorstDelete(t *testing.T) {
@@ -101,112 +85,79 @@ func TestBenchmarkWorstDelete(t *testing.T) {
         list.Insert(Element(i))
     }
 
-    defer timeTrack(time.Now(), g_maxN, "mtWorstDelete")
-
     for i := 0; i < g_maxN; i++ {
         list.Delete(Element(g_maxN-i-1))
     }
-
+    if !list.isEmpty() {
+        t.Fail()
+    }
 }
 
-//func TestFind(t *testing.T) {
-//    list := New(0.01)
-//
-//    for i := 0; i < g_maxN; i++ {
-//        list.Insert(Element(i))
-//    }
-//    for i := 0; i < g_maxN; i++ {
-//        if _,ok := list.Find(Element(i)); !ok {
-//            t.Fail()
-//        }
-//    }
-//}
-//
-//func TestFindGreaterOrEqual(t *testing.T) {
-//    list := New(0.01)
-//
-//    for i := 0; i < g_maxN; i++ {
-//        if  i != 45 &&
-//            i != 46 &&
-//            i != 47 &&
-//            i != 48 &&
-//            i != 6006 &&
-//            i != 6007 &&
-//            i != 6001 &&
-//            i != 6003 {
-//            list.Insert(Element(i))
-//        }
-//    }
-//
-//    if e,ok := list.FindGreaterOrEqual(Element(44)); ok {
-//        if e.value.(Element) != 44 {
-//            t.Fail()
-//        }
-//    } else {
-//        t.Fail()
-//    }
-//
-//    if e,ok := list.FindGreaterOrEqual(Element(45)); ok {
-//        if e.value.(Element) != 49 {
-//            t.Fail()
-//        }
-//    } else {
-//        t.Fail()
-//    }
-//
-//    if e,ok := list.FindGreaterOrEqual(Element(47)); ok {
-//        if e.value.(Element) != 49 {
-//            t.Fail()
-//        }
-//    } else {
-//        t.Fail()
-//    }
-//
-//    if e,ok := list.FindGreaterOrEqual(Element(6006)); ok {
-//        if e.value.(Element) != 6008 {
-//            t.Fail()
-//        }
-//    } else {
-//        t.Fail()
-//    }
-//
-//    if e,ok := list.FindGreaterOrEqual(Element(6001)); ok {
-//        if e.value.(Element) != 6002 {
-//            t.Fail()
-//        }
-//    } else {
-//        t.Fail()
-//    }
-//
-//    if e,ok := list.FindGreaterOrEqual(Element(6002)); ok {
-//        if e.value.(Element) != 6002 {
-//            t.Fail()
-//        }
-//    } else {
-//        t.Fail()
-//    }
-//
-//}
-//
-//func TestDelete(t *testing.T) {
-//
-//
-//    list := New(0.01)
-//
-//    for i := 0; i < g_maxN; i++ {
-//        list.Insert(Element(i))
-//    }
-//
-//    //list.PrettyPrint()
-//
-//    for i := 0; i < g_maxN; i++ {
-//        list.Delete(Element(i))
-//    }
-//
-//    if !list.isEmpty() {
-//        t.Fail()
-//    }
-//}
+func TestFindGreaterOrEqual(t *testing.T) {
+    list := New(0.01)
+
+    for i := 0; i < g_maxN; i++ {
+        if  i != 45 &&
+            i != 46 &&
+            i != 47 &&
+            i != 48 &&
+            i != 6006 &&
+            i != 6007 &&
+            i != 6001 &&
+            i != 6003 {
+            list.Insert(Element(i))
+        }
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element(44)); ok {
+        if e.value.(Element) != 44 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element(45)); ok {
+        if e.value.(Element) != 49 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element(47)); ok {
+        if e.value.(Element) != 49 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element(6006)); ok {
+        if e.value.(Element) != 6008 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element(6001)); ok {
+        if e.value.(Element) != 6002 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+    if e,ok := list.FindGreaterOrEqual(Element(6002)); ok {
+        if e.value.(Element) != 6002 {
+            t.Fail()
+        }
+    } else {
+        t.Fail()
+    }
+
+}
 
 func TestInsertRandom(t *testing.T) {
 
@@ -215,34 +166,23 @@ func TestInsertRandom(t *testing.T) {
 
     rList := rand.Perm(g_maxN)
 
-
-    t1 := time.Now()
-
     for _,e := range rList {
-        //fmt.Printf("Insert: %v\n", e)
         list.Insert(Element(e))
-        //list.PrettyPrint()
     }
 
-    timeTrack(t1, g_maxN, "TestInsertRandom")
+    for _,e := range rList {
+        if _,ok := list.Find(Element(e)); !ok {
+            t.Fail()
+        }
+    }
 
-    //list.PrettyPrint()
+    for _,e := range rList {
+        list.Delete(Element(e))
+    }
 
-    //for _,e := range rList {
-    //    if _,ok := list.Find(Element(e)); !ok {
-    //        t.Fail()
-    //    }
-    //}
-    //
-    //for _,e := range rList {
-    //    list.Delete(Element(e))
-    //}
-    //
-    //
-    //
-    //if !list.isEmpty() {
-    //    t.Fail()
-    //}
+    if !list.isEmpty() {
+        t.Fail()
+    }
 }
 func TestDeleteRandom(t *testing.T) {
 
@@ -255,32 +195,28 @@ func TestDeleteRandom(t *testing.T) {
         list.Insert(Element(e))
     }
 
-    defer timeTrack(time.Now(), g_maxN, "TestDeleteRandom")
-
     for _,e := range rList {
         list.Delete(Element(e))
     }
 }
 
 
-//func TestInsertDelete(t *testing.T) {
-//
-//    //defer profile.Start(profile.CPUProfile).Stop()
-//    list := New(0.01)
-//
-//    rList := rand.Perm(g_maxN)
-//
-//    for _,e := range rList {
-//        list.Insert(Element(e))
-//    }
-//
-//    defer timeTrack(time.Now(), g_maxN*2, "TestInsertDeleteRandom")
-//
-//    for _,e := range rList {
-//        list.Delete(Element(e))
-//        list.Insert(Element(e))
-//    }
-//}
+func TestInsertDelete(t *testing.T) {
+
+    //defer profile.Start(profile.CPUProfile).Stop()
+    list := New(0.01)
+
+    rList := rand.Perm(g_maxN)
+
+    for _,e := range rList {
+        list.Insert(Element(e))
+    }
+
+    for _,e := range rList {
+        list.Delete(Element(e))
+        list.Insert(Element(e))
+    }
+}
 
 // Delete and Insert based on search:
 // mtInserts: 476
@@ -311,3 +247,19 @@ func TestDeleteRandom(t *testing.T) {
 // --- PASS: TestDelete (1.30s)
 // --- PASS: TestInsertRandom (4.41s)
 // ok   skiplist    14.486s
+
+// No search finger but some other small improvements:
+// mtInserts: 489
+// mtWorstInserts: 450
+// mtAvgSearch: 288
+// mtSearchEnd: 188
+// mtDelete: 126
+// mtWorstDelete: 305
+// --- PASS: TestBenchmarkWorstDelete (0.59s)
+// --- PASS: TestFind (0.62s)
+// --- PASS: TestFindGreaterOrEqual (0.35s)
+// --- PASS: TestDelete (0.49s)
+// --- PASS: TestInsertRandom (1.82s)
+// --- PASS: TestDeleteRandom (3.43s)
+// --- PASS: TestInsertDelete (4.93s)
+// ok   skiplist    14.756s
