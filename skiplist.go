@@ -39,16 +39,12 @@ import (
 
 const (
     MAX_LEVEL = 25
+    EPS       = 0.00001
 )
 
 type ListElement interface {
     ExtractValue() float64
     String() string
-}
-
-type Backtrack struct {
-    node    *SkipListElement
-    level   int
 }
 
 type SkipListElement struct {
@@ -68,15 +64,11 @@ type SkipList struct {
     eps                 float64
 }
 
-// Package initialization
-func init() {
-    seed := time.Now().UTC().UnixNano()
-    //seed = 1530734648380737920
-    fmt.Printf("seed: %v\n", seed)
-    rand.Seed(seed)
-}
+func NewSeedEps(seed int64, eps float64) SkipList {
 
-func New(eps float64) SkipList {
+    // Initialize random number generator.
+    rand.Seed(seed)
+
     list := SkipList{
         startLevels:        [MAX_LEVEL]*SkipListElement{},
         endLevels:          [MAX_LEVEL]*SkipListElement{},
@@ -87,6 +79,15 @@ func New(eps float64) SkipList {
     }
 
     return list
+}
+func NewEps(eps float64) SkipList {
+    return NewSeedEps(time.Now().UTC().UnixNano(), eps)
+}
+func NewSeed(seed int64) SkipList {
+    return NewSeedEps(seed, EPS)
+}
+func New() SkipList {
+    return NewSeedEps(time.Now().UTC().UnixNano(), EPS)
 }
 
 func (t *SkipList)generateLevel(maxLevel int) int {
@@ -107,7 +108,6 @@ func (t *SkipList)generateLevel(maxLevel int) int {
 func (t *SkipList) isEmpty() bool {
     return t.startLevels[0] == nil
 }
-
 
 func (t *SkipList) findEntryIndex(key float64, level int) int {
     // Find good entry point so we don't accidently skip half the list.
@@ -365,6 +365,43 @@ func (t *SkipList) Insert(e ListElement) {
         }
     }
 
+}
+
+func (e *SkipListElement) GetValue() ListElement {
+    return e.value
+}
+
+func (t *SkipList) GetSmallestNode() *SkipListElement {
+    return t.startLevels[0]
+}
+
+func (t *SkipList) GetLargestNode() *SkipListElement {
+    return t.endLevels[0]
+}
+
+func (t *SkipList) Next(e *SkipListElement) *SkipListElement {
+    if e.next[0] == nil {
+        return t.startLevels[0]
+    }
+    return e.next[0]
+}
+
+func (t *SkipList) Prev(e *SkipListElement) *SkipListElement {
+    if e.prev == nil {
+        return t.endLevels[0]
+    }
+    return e.prev
+}
+
+func (t *SkipList) ChangeValue(e *SkipListElement, newValue ListElement) (ok bool) {
+    // The key needs to stay correct, so this is very important!
+    if (newValue.ExtractValue() - e.key) <= t.eps {
+        e.value = newValue
+        ok = true
+    } else {
+        ok = false
+    }
+    return
 }
 
 func (t *SkipList) PrettyPrint() {
