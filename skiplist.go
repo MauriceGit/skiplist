@@ -20,13 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// tree23 is an implementation for a balanced 2-3-tree.
-// It distinguishes itself from other implementations of 2-3-trees by having a few more
-// functions defined for finding elements close to a key (similar to possible insert positions in the tree)
-// for floating point keys and by having a native function to retreive the next or previous leaf SkipListElement
-// in the tree without knowing its key or position in the tree that work in O(1) for every leaf!
-// The last SkipListElement links to the first and the first back to the last SkipListElement.
-// The tree has its own memory manager to avoid frequent allocations for single nodes that are created or removed.
+// skiplist is an implementation of a skiplist to store elements in increasing order.
+// It allows finding, insertion and deletion operations in approximately O(n log(n)).
+// Additionally, there are methods for retrieving the next and previous element as well as changing the actual value
+// without the need for re-insertion (as long as the key stays the same!)
+// Skiplist is a fast alternative to a balanced tree.
 package skiplist
 
 import (
@@ -38,15 +36,22 @@ import (
 )
 
 const (
+    // MAX_LEVEL denotes the maximum height of the skiplist. This height will keep the skiplist
+    // efficient for up to 34m entries. If there is a need for much more, please adjust this constant accordingly.
     MAX_LEVEL = 25
     EPS       = 0.00001
 )
 
+// ListElement is the interface to implement for elements that are inserted into the skiplist.
 type ListElement interface {
-    ExtractValue() float64
+    // ExtractKey() returns a float64 representation of the key that is used for insertion/deletion/find. It needs to establish an order over all elements
+    ExtractKey() float64
+    // A string representation of the element. Can be used for pretty-printing the list. Otherwise just return an empty string.
     String() string
 }
 
+// SkipListElement represents one actual Node in the skiplist structure.
+// It saves the actual element, pointers to the next nodes and a pointer to one previous node.
 type SkipListElement struct {
     next       [MAX_LEVEL]*SkipListElement
     level       int
@@ -55,6 +60,8 @@ type SkipListElement struct {
     prev        *SkipListElement
 }
 
+// SkipList is the actual skiplist representation.
+// It saves all nodes accessible from the start and end and keeps track of element count, eps and levels.
 type SkipList struct {
     startLevels         [MAX_LEVEL]*SkipListElement
     endLevels           [MAX_LEVEL]*SkipListElement
@@ -64,6 +71,9 @@ type SkipList struct {
     eps                 float64
 }
 
+// NewSeedEps returns a new empty, initialized Skiplist.
+// Given a seed, a deterministic height/list behaviour can be achieved.
+// Eps is used to compare keys given by the ExtractKey() function on equality.
 func NewSeedEps(seed int64, eps float64) SkipList {
 
     // Initialize random number generator.
@@ -80,14 +90,27 @@ func NewSeedEps(seed int64, eps float64) SkipList {
 
     return list
 }
+
+// NewEps returns a new empty, initialized Skiplist.
+// Eps is used to compare keys given by the ExtractKey() function on equality.
 func NewEps(eps float64) SkipList {
     return NewSeedEps(time.Now().UTC().UnixNano(), eps)
 }
+
+// NewSeed returns a new empty, initialized Skiplist.
+// Given a seed, a deterministic height/list behaviour can be achieved.
 func NewSeed(seed int64) SkipList {
     return NewSeedEps(seed, EPS)
 }
+
+// New returns a new empty, initialized Skiplist.
 func New() SkipList {
     return NewSeedEps(time.Now().UTC().UnixNano(), EPS)
+}
+
+// IsEmpty checks, if the skiplist is empty.
+func (t *SkipList) IsEmpty() bool {
+    return t.startLevels[0] == nil
 }
 
 func (t *SkipList)generateLevel(maxLevel int) int {
@@ -103,10 +126,6 @@ func (t *SkipList)generateLevel(maxLevel int) int {
     }
 
     return level
-}
-
-func (t *SkipList) isEmpty() bool {
-    return t.startLevels[0] == nil
 }
 
 func (t *SkipList) findEntryIndex(key float64, level int) int {
@@ -125,7 +144,7 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
     foundElem = nil
     ok = false
 
-    if t.isEmpty() {
+    if t.IsEmpty() {
         return
     }
 
@@ -174,21 +193,33 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
     return
 }
 
-func (t *SkipList) Find(e ListElement) (*SkipListElement, bool) {
-    return t.findExtended(e.ExtractValue(), false)
+// Find tries to find an element in the skiplist based on the key from the given ListElement.
+// elem can be used, if ok is true.
+// Find runs in approx. O(log(n))
+func (t *SkipList) Find(e ListElement) (elem *SkipListElement, ok bool) {
+    elem, ok = t.findExtended(e.ExtractKey(), false)
+    return
 }
 
-func (t *SkipList) FindGreaterOrEqual(e ListElement) (*SkipListElement, bool) {
-    return t.findExtended(e.ExtractValue(), true)
+// FindGreaterOrEqual finds the first element, that is greater or equal to the given ListElement e.
+// The comparison is done on the keys (So on ExtractKey()).
+// FindGreaterOrEqual runs in approx. O(log(n))
+func (t *SkipList) FindGreaterOrEqual(e ListElement) (elem *SkipListElement, ok bool) {
+    elem, ok = t.findExtended(e.ExtractKey(), true)
+    return
 }
 
+// Delete removes an element equal to e from the skiplist, if there is one.
+// If there are multiple entries with the same value, Delete will remove one of them
+// (Which one will change based on the actual skiplist layout)
+// Delete runs in approx. O(log(n))
 func (t *SkipList) Delete(e ListElement) {
 
-   if t.isEmpty() {
+   if t.IsEmpty() {
         return
     }
 
-    key := e.ExtractValue()
+    key := e.ExtractKey()
 
     index := t.findEntryIndex(key, 0)
 
@@ -247,6 +278,8 @@ func (t *SkipList) Delete(e ListElement) {
 
 }
 
+// Insert inserts the given ListElement into the skiplist.
+// Insert runs in approx. O(log(n))
 func (t *SkipList) Insert(e ListElement) {
 
     level := t.generateLevel(t.maxNewLevel)
@@ -260,7 +293,7 @@ func (t *SkipList) Insert(e ListElement) {
     elem  := &SkipListElement {
                 next: [MAX_LEVEL]*SkipListElement{},
                 level: level,
-                key:   e.ExtractValue(),
+                key:   e.ExtractKey(),
                 value: e,
             }
 
@@ -268,7 +301,7 @@ func (t *SkipList) Insert(e ListElement) {
 
     newFirst := true
     newLast := true
-    if !t.isEmpty() {
+    if !t.IsEmpty() {
         newFirst = elem.key < t.startLevels[0].key
         newLast  = elem.key > t.endLevels[0].key
     }
@@ -367,18 +400,25 @@ func (t *SkipList) Insert(e ListElement) {
 
 }
 
+// GetValue extracts the ListElement value from a skiplist node.
 func (e *SkipListElement) GetValue() ListElement {
     return e.value
 }
 
+// GetSmallestNode returns the very first/smallest node in the skiplist.
+// GetSmallestNode runs in O(1)
 func (t *SkipList) GetSmallestNode() *SkipListElement {
     return t.startLevels[0]
 }
 
+// GetLargestNode returns the very last/largest node in the skiplist.
+// GetLargestNode runs in O(1)
 func (t *SkipList) GetLargestNode() *SkipListElement {
     return t.endLevels[0]
 }
 
+// Next returns the next element based on the given node.
+// Next will loop around to the first node, if you call it on the last!
 func (t *SkipList) Next(e *SkipListElement) *SkipListElement {
     if e.next[0] == nil {
         return t.startLevels[0]
@@ -386,6 +426,8 @@ func (t *SkipList) Next(e *SkipListElement) *SkipListElement {
     return e.next[0]
 }
 
+// Prev returns the previous element based on the given node.
+// Prev will loop around to the last node, if you call it on the first!
 func (t *SkipList) Prev(e *SkipListElement) *SkipListElement {
     if e.prev == nil {
         return t.endLevels[0]
@@ -393,9 +435,13 @@ func (t *SkipList) Prev(e *SkipListElement) *SkipListElement {
     return e.prev
 }
 
+// ChangeValue can be used to change the actual value of a node in the skiplist
+// without the need of Deleting and reinserting the node again.
+// Be advised, that ChangeValue only works, if the actual key from ExtractKey() will stay the same!
+// ok is an indicator, wether the value is actually changed.
 func (t *SkipList) ChangeValue(e *SkipListElement, newValue ListElement) (ok bool) {
     // The key needs to stay correct, so this is very important!
-    if (newValue.ExtractValue() - e.key) <= t.eps {
+    if (newValue.ExtractKey() - e.key) <= t.eps {
         e.value = newValue
         ok = true
     } else {
@@ -404,6 +450,8 @@ func (t *SkipList) ChangeValue(e *SkipListElement, newValue ListElement) (ok boo
     return
 }
 
+// PrettyPrint prints the complete skiplist to stdout.
+// The best results are achieved, if your ListElement.String()
 func (t *SkipList) PrettyPrint() {
 
     fmt.Printf(" --> ")

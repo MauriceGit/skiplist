@@ -17,7 +17,7 @@ var g_maxN int = 1000000
 
 type Element int
 
-func (e Element) ExtractValue() float64 {
+func (e Element) ExtractKey() float64 {
     return float64(e)
 }
 func (e Element) String() string {
@@ -28,7 +28,7 @@ type ComplexElement struct {
     E int
     S string
 }
-func (e ComplexElement) ExtractValue() float64 {
+func (e ComplexElement) ExtractKey() float64 {
     return float64(e.E)
 }
 func (e ComplexElement) String() string {
@@ -90,7 +90,7 @@ func TestDelete(t *testing.T) {
     for i := 0; i < g_maxN; i++ {
         list.Delete(Element(i))
     }
-    if !list.isEmpty() {
+    if !list.IsEmpty() {
         t.Fail()
     }
 
@@ -102,7 +102,7 @@ func TestDelete(t *testing.T) {
     for i := 0; i < g_maxN; i++ {
         list.Delete(Element(g_maxN-i-1))
     }
-    if !list.isEmpty() {
+    if !list.IsEmpty() {
         t.Fail()
     }
 
@@ -115,7 +115,7 @@ func TestDelete(t *testing.T) {
     for _,e := range rList {
         list.Delete(Element(e))
     }
-    if !list.isEmpty() {
+    if !list.IsEmpty() {
         t.Fail()
     }
 }
