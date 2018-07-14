@@ -29,10 +29,10 @@ a much more detailed comparison over several benchmarks between different skipli
 Overall, this implementation is the fastest skiplist for nearly all operations. Especially for real-world applications.
 
 ![Random insert](graphs/randomInserts.png)
-If we compare random insertions of this skiplist to other implementations, it is clearly the fastest implementation by up to 800ns per insertion for up to 3m elements.
+If we compare random insertions of this skiplist to other implementations, it is clearly the fastest by up to 800ns per insertion for up to 3m elements.
 
 ![Random delete](graphs/randomDelete.png)
-If we compare random deletions of this skiplist to other implementations, it is clearly the fastest implementation by up to 300ns per deletion for up to 3m elements.
+If we compare random deletions of this skiplist to other implementations, it is clearly the fastest by up to 300ns per deletion for up to 3m elements.
 
 ### Convenience functions
 
@@ -40,7 +40,7 @@ Other than the classic `Find`, `Insert` and `Delete`, some more convenience func
 in real applications. All complexity values are approximates, as skiplist can only approximate runtime complexity.
 
 | Function        | Complexity           | Description  |
-| ------------- |:-------------:| -----:|
+| ------------- |:-------------:|:-----|
 | Find | O(log(n)) | Finds an element in the skiplist |
 | FindGreaterOrEqual | O(log(n)) | Finds the first element that is greater or equal the given value in the skiplist |
 | Insert | O(log(n)) | Inserts an element into the skiplist |
