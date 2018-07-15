@@ -284,7 +284,7 @@ func (t *SkipList) Insert(e ListElement) {
 	level := t.generateLevel(t.maxNewLevel)
 
 	// Only grow the height of the skiplist by one at a time!
-	if level > t.maxLevel+1 {
+	if level > t.maxLevel {
 		level = t.maxLevel + 1
 		t.maxLevel = level
 	}
@@ -330,6 +330,7 @@ func (t *SkipList) Insert(e ListElement) {
 					currentNode.next[index] = elem
 				}
 				if index == 0 {
+
 					elem.prev = currentNode
 					nextNode.prev = elem
 				}
@@ -396,7 +397,6 @@ func (t *SkipList) Insert(e ListElement) {
 			break
 		}
 	}
-
 }
 
 // GetValue extracts the ListElement value from a skiplist node.
