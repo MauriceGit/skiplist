@@ -434,6 +434,11 @@ func (t *SkipList) Prev(e *SkipListElement) *SkipListElement {
 	return e.prev
 }
 
+// GetNodeCount returns the number of nodes currently in the skiplist.
+func (t *SkipList) GetNodeCount() int {
+	return t.elementCount
+}
+
 // ChangeValue can be used to change the actual value of a node in the skiplist
 // without the need of Deleting and reinserting the node again.
 // Be advised, that ChangeValue only works, if the actual key from ExtractKey() will stay the same!
