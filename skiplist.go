@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// skiplist is an implementation of a skiplist to store elements in increasing order.
+// Package skiplist is an implementation of a skiplist to store elements in increasing order.
 // It allows finding, insertion and deletion operations in approximately O(n log(n)).
 // Additionally, there are methods for retrieving the next and previous element as well as changing the actual value
 // without the need for re-insertion (as long as the key stays the same!)
@@ -36,10 +36,10 @@ import (
 )
 
 const (
-	// MAX_LEVEL denotes the maximum height of the skiplist. This height will keep the skiplist
+	// maxLevel denotes the maximum height of the skiplist. This height will keep the skiplist
 	// efficient for up to 34m entries. If there is a need for much more, please adjust this constant accordingly.
-	MAX_LEVEL = 25
-	EPS       = 0.00001
+	maxLevel = 25
+	eps      = 0.00001
 )
 
 // ListElement is the interface to implement for elements that are inserted into the skiplist.
@@ -53,7 +53,7 @@ type ListElement interface {
 // SkipListElement represents one actual Node in the skiplist structure.
 // It saves the actual element, pointers to the next nodes and a pointer to one previous node.
 type SkipListElement struct {
-	next  [MAX_LEVEL]*SkipListElement
+	next  [maxLevel]*SkipListElement
 	level int
 	key   float64
 	value ListElement
@@ -63,8 +63,8 @@ type SkipListElement struct {
 // SkipList is the actual skiplist representation.
 // It saves all nodes accessible from the start and end and keeps track of element count, eps and levels.
 type SkipList struct {
-	startLevels  [MAX_LEVEL]*SkipListElement
-	endLevels    [MAX_LEVEL]*SkipListElement
+	startLevels  [maxLevel]*SkipListElement
+	endLevels    [maxLevel]*SkipListElement
 	maxNewLevel  int
 	maxLevel     int
 	elementCount int
@@ -80,9 +80,9 @@ func NewSeedEps(seed int64, eps float64) SkipList {
 	rand.Seed(seed)
 
 	list := SkipList{
-		startLevels:  [MAX_LEVEL]*SkipListElement{},
-		endLevels:    [MAX_LEVEL]*SkipListElement{},
-		maxNewLevel:  MAX_LEVEL,
+		startLevels:  [maxLevel]*SkipListElement{},
+		endLevels:    [maxLevel]*SkipListElement{},
+		maxNewLevel:  maxLevel,
 		maxLevel:     0,
 		elementCount: 0,
 		eps:          eps,
@@ -100,12 +100,12 @@ func NewEps(eps float64) SkipList {
 // NewSeed returns a new empty, initialized Skiplist.
 // Given a seed, a deterministic height/list behaviour can be achieved.
 func NewSeed(seed int64) SkipList {
-	return NewSeedEps(seed, EPS)
+	return NewSeedEps(seed, eps)
 }
 
 // New returns a new empty, initialized Skiplist.
 func New() SkipList {
-	return NewSeedEps(time.Now().UTC().UnixNano(), EPS)
+	return NewSeedEps(time.Now().UTC().UnixNano(), eps)
 }
 
 // IsEmpty checks, if the skiplist is empty.
@@ -129,7 +129,7 @@ func (t *SkipList) generateLevel(maxLevel int) int {
 }
 
 func (t *SkipList) findEntryIndex(key float64, level int) int {
-	// Find good entry point so we don't accidently skip half the list.
+	// Find good entry point so we don't accidentally skip half the list.
 	for i := t.maxLevel; i >= 0; i-- {
 		if t.startLevels[i] != nil && t.startLevels[i].key <= key || i <= level {
 			return i
@@ -148,7 +148,7 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
 	}
 
 	index := t.findEntryIndex(key, 0)
-	var currentNode *SkipListElement = nil
+	var currentNode *SkipListElement
 
 	currentNode = t.startLevels[index]
 	nextNode := currentNode
@@ -184,12 +184,9 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
 					ok = nextNode != nil
 				}
 				return
-
 			}
 		}
 	}
-
-	return
 }
 
 // Find tries to find an element in the skiplist based on the key from the given ListElement.
@@ -222,7 +219,7 @@ func (t *SkipList) Delete(e ListElement) {
 
 	index := t.findEntryIndex(key, 0)
 
-	var currentNode *SkipListElement = nil
+	var currentNode *SkipListElement
 	nextNode := currentNode
 
 	for {
@@ -290,7 +287,7 @@ func (t *SkipList) Insert(e ListElement) {
 	}
 
 	elem := &SkipListElement{
-		next:  [MAX_LEVEL]*SkipListElement{},
+		next:  [maxLevel]*SkipListElement{},
 		level: level,
 		key:   e.ExtractKey(),
 		value: e,
@@ -312,7 +309,7 @@ func (t *SkipList) Insert(e ListElement) {
 
 		index := t.findEntryIndex(elem.key, level)
 
-		var currentNode *SkipListElement = nil
+		var currentNode *SkipListElement
 		nextNode := t.startLevels[index]
 
 		for {

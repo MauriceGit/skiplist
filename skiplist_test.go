@@ -8,11 +8,9 @@ import (
 	//"github.com/pkg/profile"
 )
 
-var g_maxN int = 1000000
-
-//type Element struct {
-//    E int
-//}
+const (
+	maxN = 1000000
+)
 
 type Element int
 
@@ -45,21 +43,21 @@ func timeTrack(start time.Time, n int, name string) {
 func TestInsertAndFind(t *testing.T) {
 	list := New()
 	// Test at the beginning of the list.
-	for i := 0; i < g_maxN; i++ {
-		list.Insert(Element(g_maxN - i))
+	for i := 0; i < maxN; i++ {
+		list.Insert(Element(maxN - i))
 	}
-	for i := 0; i < g_maxN; i++ {
-		if _, ok := list.Find(Element(g_maxN - i)); !ok {
+	for i := 0; i < maxN; i++ {
+		if _, ok := list.Find(Element(maxN - i)); !ok {
 			t.Fail()
 		}
 	}
 
 	list = New()
 	// Test at the end of the list.
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
 	}
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		if _, ok := list.Find(Element(i)); !ok {
 			t.Fail()
 		}
@@ -67,7 +65,7 @@ func TestInsertAndFind(t *testing.T) {
 
 	list = New()
 	// Test at random positions in the list.
-	rList := rand.Perm(g_maxN)
+	rList := rand.Perm(maxN)
 	for _, e := range rList {
 		list.Insert(Element(e))
 	}
@@ -82,10 +80,10 @@ func TestInsertAndFind(t *testing.T) {
 func TestDelete(t *testing.T) {
 	list := New()
 	// Delete elements at the beginning of the list.
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
 	}
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Delete(Element(i))
 	}
 	if !list.IsEmpty() {
@@ -94,11 +92,11 @@ func TestDelete(t *testing.T) {
 
 	list = New()
 	// Delete elements at the end of the list.
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
 	}
-	for i := 0; i < g_maxN; i++ {
-		list.Delete(Element(g_maxN - i - 1))
+	for i := 0; i < maxN; i++ {
+		list.Delete(Element(maxN - i - 1))
 	}
 	if !list.IsEmpty() {
 		t.Fail()
@@ -106,7 +104,7 @@ func TestDelete(t *testing.T) {
 
 	list = New()
 	// Delete elements at random positions in the list.
-	rList := rand.Perm(g_maxN)
+	rList := rand.Perm(maxN)
 	for _, e := range rList {
 		list.Insert(Element(e))
 	}
@@ -121,7 +119,7 @@ func TestDelete(t *testing.T) {
 func TestFindGreaterOrEqual(t *testing.T) {
 	list := New()
 
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		if i != 45 &&
 			i != 46 &&
 			i != 47 &&
@@ -187,7 +185,7 @@ func TestFindGreaterOrEqual(t *testing.T) {
 func TestPrev(t *testing.T) {
 	list := New()
 
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
 	}
 
@@ -209,7 +207,7 @@ func TestPrev(t *testing.T) {
 func TestNext(t *testing.T) {
 	list := New()
 
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
 	}
 
@@ -231,11 +229,11 @@ func TestNext(t *testing.T) {
 func TestChangeValue(t *testing.T) {
 	list := New()
 
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		list.Insert(ComplexElement{i, "value"})
 	}
 
-	for i := 0; i < g_maxN; i++ {
+	for i := 0; i < maxN; i++ {
 		// The key only looks at the int so the string doesn't matter here!
 		f1, ok := list.Find(ComplexElement{i, ""})
 		if !ok {
