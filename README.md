@@ -34,6 +34,45 @@ If we compare random insertions of this skiplist to other implementations, it is
 ![Random delete](graphs/randomDelete.png)
 If we compare random deletions of this skiplist to other implementations, it is clearly the fastest by up to 300ns per deletion for up to 3m elements.
 
+### Usage
+
+```go
+
+import (
+    "github.com/MauriceGit/skiplist"
+    "fmt"
+)
+
+type Element int
+// Implement the interface used in skiplist
+func (e Element) ExtractKey() float64 {
+    return float64(e)
+}
+func (e Element) String() string {
+    return fmt.Sprintf("%03d", e)
+}
+
+func main() {
+    list := New()
+
+    // Insert some elements
+    for i := 0; i < 100; i++ {
+        list.Insert(Element(i))
+    }
+
+    // Find an element
+    if e, ok := list.Find(Element(53)); ok {
+        fmt.Println(e)
+    }
+
+    // Delete all elements
+    for i := 0; i < 100; i++ {
+        list.Delete(Element(i))
+    }
+}
+
+```
+
 ### Convenience functions
 
 Other than the classic `Find`, `Insert` and `Delete`, some more convenience functions are implemented that makes this skiplist implementation very easy and straight forward to use
