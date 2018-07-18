@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/mauricegit/skiplist)](https://goreportcard.com/report/github.com/mauricegit/skiplist)
+
 ## Fast Skiplist Implementation
 
 This Go-library implements a very fast and efficient Skiplist that can be used as direct substitute for a balanced tree or linked list.
