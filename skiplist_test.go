@@ -51,7 +51,23 @@ func timeTrack(start time.Time, n int, name string) {
 }
 
 func TestInsertAndFind(t *testing.T) {
-	list := New()
+	var list SkipList
+
+	var listPointer *SkipList
+	listPointer.Insert(Element(0))
+	if _, ok := listPointer.Find(Element(0)); ok {
+		t.Fail()
+	}
+
+	list = New()
+
+	if _, ok := list.Find(Element(0)); ok {
+		t.Fail()
+	}
+	if !list.IsEmpty() {
+		t.Fail()
+	}
+
 	// Test at the beginning of the list.
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(maxN - i))
@@ -88,7 +104,19 @@ func TestInsertAndFind(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	list := New()
+
+	var list SkipList
+
+	// Delete on empty list
+	list.Delete(Element(0))
+
+	list = New()
+
+	list.Delete(Element(0))
+	if !list.IsEmpty() {
+		t.Fail()
+	}
+
 	// Delete elements at the beginning of the list.
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
@@ -128,14 +156,34 @@ func TestDelete(t *testing.T) {
 
 func TestFindGreaterOrEqual(t *testing.T) {
 	eps := 0.00000001
-	list := NewEps(eps)
 	maxNumber := 1000.0
+
+	var list SkipList
+	var listPointer *SkipList
+
+	// Test on empty list.
+	if _, ok := listPointer.FindGreaterOrEqual(FloatElement(0)); ok {
+		t.Fail()
+	}
+
+	list = NewEps(eps)
 
 	for i := 0; i < maxN; i++ {
 		list.Insert(FloatElement(rand.Float64() * maxNumber))
 	}
 
 	first := float64(list.GetSmallestNode().GetValue().(FloatElement))
+
+	// Find the very first element. This is a special case in the implementation that needs testing!
+	if v, ok := list.FindGreaterOrEqual(FloatElement(first - 2.0*eps)); ok {
+		// We found an element different to the first one!
+		if math.Abs(float64(v.GetValue().(FloatElement))-first) > eps {
+			t.Fail()
+		}
+	} else {
+		// No element found.
+		t.Fail()
+	}
 
 	for i := 0; i < maxN; i++ {
 		f := rand.Float64() * maxNumber
@@ -190,6 +238,10 @@ func TestPrev(t *testing.T) {
 		}
 		lastNode = node
 	}
+
+	if list.Prev(smallest) != largest {
+		t.Fail()
+	}
 }
 
 func TestNext(t *testing.T) {
@@ -215,6 +267,10 @@ func TestNext(t *testing.T) {
 			t.Fail()
 		}
 		lastNode = node
+	}
+
+	if list.Next(largest) != smallest {
+		t.Fail()
 	}
 }
 
@@ -242,6 +298,56 @@ func TestChangeValue(t *testing.T) {
 		if f2.GetValue().(ComplexElement).S != "different value" {
 			t.Fail()
 		}
+		if ok = list.ChangeValue(f2, ComplexElement{i + 5, "different key"}); ok {
+			t.Fail()
+		}
+	}
+}
+
+func TestGetNodeCount(t *testing.T) {
+	list := New()
+
+	for i := 0; i < maxN; i++ {
+		list.Insert(Element(i))
 	}
 
+	if list.GetNodeCount() != maxN {
+		t.Fail()
+	}
+}
+
+func TestString(t *testing.T) {
+	list := NewSeed(1531889620180049576)
+
+	for i := 0; i < 20; i++ {
+		list.Insert(Element(i))
+	}
+
+	testString := ` --> [000]     -> [002] -> [009] -> [010]
+000: [---|001]
+001: [000|002]
+002: [001|003] -> [004]
+003: [002|004]
+004: [003|005] -> [005]
+005: [004|006] -> [009]
+006: [005|007]
+007: [006|008]
+008: [007|009]
+009: [008|010] -> [010] -> [010]
+010: [009|011] -> [012] -> [---] -> [---]
+011: [010|012]
+012: [011|013] -> [013]
+013: [012|014] -> [---]
+014: [013|015]
+015: [014|016]
+016: [015|017]
+017: [016|018]
+018: [017|019]
+019: [018|---]
+ --> [019]     -> [013] -> [010] -> [010]
+`
+
+	if list.String() != testString {
+		t.Fail()
+	}
 }

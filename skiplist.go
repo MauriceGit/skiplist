@@ -115,15 +115,13 @@ func (t *SkipList) IsEmpty() bool {
 }
 
 func (t *SkipList) generateLevel(maxLevel int) int {
-	level := 0
+	level := maxLevel - 1
 	// First we apply some mask which makes sure that we don't get a level
 	// above our desired level. Then we find the first set bit.
 	var x uint64 = rand.Uint64() & ((1 << uint(maxLevel-1)) - 1)
 	zeroes := bits.TrailingZeros64(x)
 	if zeroes <= maxLevel {
 		level = zeroes
-	} else {
-		level = maxLevel - 1
 	}
 
 	return level
@@ -201,6 +199,11 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
 // elem can be used, if ok is true.
 // Find runs in approx. O(log(n))
 func (t *SkipList) Find(e ListElement) (elem *SkipListElement, ok bool) {
+
+	if t == nil || e == nil {
+		return
+	}
+
 	elem, ok = t.findExtended(e.ExtractKey(), false)
 	return
 }
@@ -209,6 +212,11 @@ func (t *SkipList) Find(e ListElement) (elem *SkipListElement, ok bool) {
 // The comparison is done on the keys (So on ExtractKey()).
 // FindGreaterOrEqual runs in approx. O(log(n))
 func (t *SkipList) FindGreaterOrEqual(e ListElement) (elem *SkipListElement, ok bool) {
+
+	if t == nil || e == nil {
+		return
+	}
+
 	elem, ok = t.findExtended(e.ExtractKey(), true)
 	return
 }
@@ -219,7 +227,7 @@ func (t *SkipList) FindGreaterOrEqual(e ListElement) (elem *SkipListElement, ok 
 // Delete runs in approx. O(log(n))
 func (t *SkipList) Delete(e ListElement) {
 
-	if t.IsEmpty() {
+	if t == nil || t.IsEmpty() || e == nil {
 		return
 	}
 
@@ -285,6 +293,10 @@ func (t *SkipList) Delete(e ListElement) {
 // Insert inserts the given ListElement into the skiplist.
 // Insert runs in approx. O(log(n))
 func (t *SkipList) Insert(e ListElement) {
+
+	if t == nil || e == nil {
+		return
+	}
 
 	level := t.generateLevel(t.maxNewLevel)
 
@@ -459,32 +471,33 @@ func (t *SkipList) ChangeValue(e *SkipListElement, newValue ListElement) (ok boo
 	return
 }
 
-// PrettyPrint prints the complete skiplist to stdout.
-// The best results are achieved, if your ListElement.String()
-func (t *SkipList) PrettyPrint() {
+// String returns a string format of the skiplist. Useful to get a graphical overview and/or debugging.
+func (t *SkipList) String() string {
+	s := ""
 
-	fmt.Printf(" --> ")
+	s += " --> "
 	for i, l := range t.startLevels {
 		if l == nil {
 			break
 		}
 		if i > 0 {
-			fmt.Printf(" -> ")
+			s += " -> "
 		}
 		next := "---"
 		if l != nil {
 			next = l.value.String()
 		}
-		fmt.Printf("[%v]", next)
+		s += fmt.Sprintf("[%v]", next)
+
 		if i == 0 {
-			fmt.Printf("    ")
+			s += "    "
 		}
 	}
-	fmt.Println("")
+	s += "\n"
 
 	node := t.startLevels[0]
 	for node != nil {
-		fmt.Printf("%v: ", node.value)
+		s += fmt.Sprintf("%v: ", node.value)
 		for i := 0; i <= node.level; i++ {
 
 			l := node.next[i]
@@ -499,37 +512,36 @@ func (t *SkipList) PrettyPrint() {
 				if node.prev != nil {
 					prev = node.prev.value.String()
 				}
-				fmt.Printf("[%v|%v]", prev, next)
+				s += fmt.Sprintf("[%v|%v]", prev, next)
 			} else {
-				fmt.Printf("[%v]", next)
+				s += fmt.Sprintf("[%v]", next)
 			}
 			if i < node.level {
-				fmt.Printf(" -> ")
+				s += " -> "
 			}
 
 		}
-		fmt.Printf("\n")
+		s += "\n"
 		node = node.next[0]
 	}
 
-	fmt.Printf(" --> ")
+	s += " --> "
 	for i, l := range t.endLevels {
 		if l == nil {
 			break
 		}
 		if i > 0 {
-			fmt.Printf(" -> ")
+			s += " -> "
 		}
 		next := "---"
 		if l != nil {
 			next = l.value.String()
 		}
-		fmt.Printf("[%v]", next)
+		s += fmt.Sprintf("[%v]", next)
 		if i == 0 {
-			fmt.Printf("    ")
+			s += "    "
 		}
 	}
-	fmt.Println("")
-
-	fmt.Printf("\n")
+	s += "\n"
+	return s
 }
