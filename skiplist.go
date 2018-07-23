@@ -78,6 +78,7 @@ func NewSeedEps(seed int64, eps float64) SkipList {
 
 	// Initialize random number generator.
 	rand.Seed(seed)
+	//fmt.Printf("SkipList seed: %v\n", seed)
 
 	list := SkipList{
 		startLevels:  [maxLevel]*SkipListElement{},
@@ -153,6 +154,13 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
 	currentNode = t.startLevels[index]
 	nextNode := currentNode
 
+	// In case, that our first element is already greater-or-equal!
+	if findGreaterOrEqual && currentNode.key > key {
+		foundElem = currentNode
+		ok = true
+		return
+	}
+
 	for {
 		if math.Abs(currentNode.key-key) <= t.eps {
 			foundElem = currentNode
@@ -182,8 +190,8 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
 				if findGreaterOrEqual {
 					foundElem = nextNode
 					ok = nextNode != nil
+					return
 				}
-				return
 			}
 		}
 	}

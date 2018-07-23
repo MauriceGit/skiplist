@@ -2,6 +2,7 @@ package skiplist
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -19,6 +20,15 @@ func (e Element) ExtractKey() float64 {
 }
 func (e Element) String() string {
 	return fmt.Sprintf("%03d", e)
+}
+
+type FloatElement float64
+
+func (e FloatElement) ExtractKey() float64 {
+	return float64(e)
+}
+func (e FloatElement) String() string {
+	return fmt.Sprintf("%.3f", e)
 }
 
 type ComplexElement struct {
@@ -117,67 +127,41 @@ func TestDelete(t *testing.T) {
 }
 
 func TestFindGreaterOrEqual(t *testing.T) {
-	list := New()
+	eps := 0.00000001
+	list := NewEps(eps)
+	maxNumber := 1000.0
 
 	for i := 0; i < maxN; i++ {
-		if i != 45 &&
-			i != 46 &&
-			i != 47 &&
-			i != 48 &&
-			i != 6006 &&
-			i != 6007 &&
-			i != 6001 &&
-			i != 6003 {
-			list.Insert(Element(i))
-		}
+		list.Insert(FloatElement(rand.Float64() * maxNumber))
 	}
 
-	if e, ok := list.FindGreaterOrEqual(Element(44)); ok {
-		if e.value.(Element) != 44 {
-			t.Fail()
-		}
-	} else {
-		t.Fail()
-	}
+	first := float64(list.GetSmallestNode().GetValue().(FloatElement))
 
-	if e, ok := list.FindGreaterOrEqual(Element(45)); ok {
-		if e.value.(Element) != 49 {
-			t.Fail()
+	for i := 0; i < maxN; i++ {
+		f := rand.Float64() * maxNumber
+		if v, ok := list.FindGreaterOrEqual(FloatElement(f)); ok {
+			// if f is v should be bigger than the element before
+			lastV := float64(list.Prev(v).GetValue().(FloatElement))
+			thisV := float64(v.GetValue().(FloatElement))
+			isFirst := math.Abs(first-thisV) <= eps
+			if !isFirst && lastV >= f {
+				fmt.Printf("PrevV: %.8f\n    f: %.8f\n\n", lastV, f)
+				t.Fail()
+			}
+			// v should be bigger or equal to f
+			// If we compare directly, we get an equal key with a difference on the 10th decimal point, which fails.
+			if f-thisV > eps {
+				fmt.Printf("f: %.8f\nv: %.8f\n\n", f, thisV)
+				t.Fail()
+			}
+		} else {
+			lastV := float64(list.GetLargestNode().GetValue().(FloatElement))
+			// It is OK, to fail, as long as f is bigger than the last element.
+			if f <= lastV {
+				fmt.Printf("lastV: %.8f\n    f: %.8f\n\n", lastV, f)
+				t.Fail()
+			}
 		}
-	} else {
-		t.Fail()
-	}
-
-	if e, ok := list.FindGreaterOrEqual(Element(47)); ok {
-		if e.value.(Element) != 49 {
-			t.Fail()
-		}
-	} else {
-		t.Fail()
-	}
-
-	if e, ok := list.FindGreaterOrEqual(Element(6006)); ok {
-		if e.value.(Element) != 6008 {
-			t.Fail()
-		}
-	} else {
-		t.Fail()
-	}
-
-	if e, ok := list.FindGreaterOrEqual(Element(6001)); ok {
-		if e.value.(Element) != 6002 {
-			t.Fail()
-		}
-	} else {
-		t.Fail()
-	}
-
-	if e, ok := list.FindGreaterOrEqual(Element(6002)); ok {
-		if e.value.(Element) != 6002 {
-			t.Fail()
-		}
-	} else {
-		t.Fail()
 	}
 
 }
@@ -200,6 +184,10 @@ func TestPrev(t *testing.T) {
 		if node.value.(Element) >= lastNode.value.(Element) {
 			t.Fail()
 		}
+		// Next.Prev must always point to itself!
+		if list.Prev(list.Next(node)) != node {
+			t.Fail()
+		}
 		lastNode = node
 	}
 }
@@ -220,6 +208,10 @@ func TestNext(t *testing.T) {
 		node = list.Next(node)
 		// Must always be incrementing here!
 		if node.value.(Element) <= lastNode.value.(Element) {
+			t.Fail()
+		}
+		// Next.Prev must always point to itself!
+		if list.Next(list.Prev(node)) != node {
 			t.Fail()
 		}
 		lastNode = node
