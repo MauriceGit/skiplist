@@ -1,4 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mauricegit/skiplist)](https://goreportcard.com/report/github.com/mauricegit/skiplist)
+[![cover.run](https://cover.run/go/https:/github.com/MauriceGit/skiplist.svg?style=flat&tag=golang-1.10)](https://cover.run/go?tag=golang-1.10&repo=https%3A%2Fgithub.com%2FMauriceGit%2Fskiplist)
 
 ## Fast Skiplist Implementation
 
