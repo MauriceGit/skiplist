@@ -351,3 +351,16 @@ func TestString(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestInfiniteLoop(t *testing.T) {
+	list := New()
+	list.Insert(Element(1))
+
+	if _, ok := list.Find(Element(2)); ok {
+		t.Fail()
+	}
+
+	if _, ok := list.FindGreaterOrEqual(Element(2)); ok {
+		t.Fail()
+	}
+}
