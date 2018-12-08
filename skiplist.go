@@ -188,8 +188,9 @@ func (t *SkipList) findExtended(key float64, findGreaterOrEqual bool) (foundElem
 				if findGreaterOrEqual {
 					foundElem = nextNode
 					ok = nextNode != nil
-					return
 				}
+
+				return
 			}
 		}
 	}
