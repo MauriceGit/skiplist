@@ -342,19 +342,20 @@ func (t *SkipList) Insert(e ListElement) {
 			}
 
 			// Connect node to next
-			if index <= level && (nextNode == nil || nextNode.key >= elem.key) {
+			if index <= level && (nextNode == nil || nextNode.key > elem.key) {
 				elem.next[index] = nextNode
 				if currentNode != nil {
 					currentNode.next[index] = elem
 				}
 				if index == 0 {
-
 					elem.prev = currentNode
-					nextNode.prev = elem
+					if nextNode != nil {
+						nextNode.prev = elem
+					}
 				}
 			}
 
-			if nextNode != nil && nextNode.key < elem.key {
+			if nextNode != nil && nextNode.key <= elem.key {
 				// Go right
 				currentNode = nextNode
 			} else {
