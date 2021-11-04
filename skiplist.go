@@ -464,7 +464,7 @@ func (t *SkipList) GetNodeCount() int {
 // ok is an indicator, wether the value is actually changed.
 func (t *SkipList) ChangeValue(e *SkipListElement, newValue ListElement) (ok bool) {
 	// The key needs to stay correct, so this is very important!
-	if (newValue.ExtractKey() - e.key) <= t.eps {
+	if math.Abs(newValue.ExtractKey() - e.key) <= t.eps {
 		e.value = newValue
 		ok = true
 	} else {
