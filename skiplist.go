@@ -28,11 +28,19 @@
 package skiplist
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"math/bits"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
+)
+
+var (
+	initial_seed int64 = 0
 )
 
 const (
@@ -76,6 +84,7 @@ type SkipList struct {
 // Eps is used to compare keys given by the ExtractKey() function on equality.
 func NewSeedEps(seed int64, eps float64) SkipList {
 
+	initial_seed = seed
 	// Initialize random number generator.
 	rand.Seed(seed)
 	//fmt.Printf("SkipList seed: %v\n", seed)
@@ -464,7 +473,7 @@ func (t *SkipList) GetNodeCount() int {
 // ok is an indicator, wether the value is actually changed.
 func (t *SkipList) ChangeValue(e *SkipListElement, newValue ListElement) (ok bool) {
 	// The key needs to stay correct, so this is very important!
-	if math.Abs(newValue.ExtractKey() - e.key) <= t.eps {
+	if math.Abs(newValue.ExtractKey()-e.key) <= t.eps {
 		e.value = newValue
 		ok = true
 	} else {
@@ -546,4 +555,57 @@ func (t *SkipList) String() string {
 	}
 	s += "\n"
 	return s
+}
+
+type Element int
+
+func (e Element) ExtractKey() float64 {
+	return float64(e)
+}
+func (e Element) String() string {
+	return fmt.Sprintf("%03d", e)
+}
+
+func Load() *SkipList {
+
+	jsonFile, err := os.Open("skiplist.json")
+	if err != nil {
+		return nil
+	}
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var result map[string]string
+	json.Unmarshal([]byte(byteValue), &result)
+
+	defer jsonFile.Close()
+
+	seed_str := result["seed"]
+	seed, err := strconv.ParseFloat(seed_str, 64)
+	if err != nil {
+		fmt.Sprintf("seed value must be string")
+		return nil
+	}
+
+	list := NewSeed(int64(seed))
+
+	for i := 1; i < len(result); i++ {
+		val, _ := strconv.ParseInt(result[strconv.Itoa(i)], 10, 64)
+		list.Insert(Element(val))
+	}
+	return &list
+}
+
+func Dump(t *SkipList) {
+	data := make(map[string]string)
+	data["seed"] = strconv.FormatInt(initial_seed, 64)
+	for i := 1; i < 10; i++ {
+		data[strconv.Itoa(i)] = strconv.Itoa(i)
+	}
+	node := t.GetSmallestNode()
+	Node_count := t.GetNodeCount()
+	for i := 1; i <= Node_count; i++ {
+		data[strconv.Itoa(i)] = node.GetValue().String()
+		node = node.next[0]
+	}
 }
