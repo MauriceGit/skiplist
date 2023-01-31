@@ -51,15 +51,15 @@ func timeTrack(start time.Time, n int, name string) {
 }
 
 func TestInsertAndFind(t *testing.T) {
-	var list SkipList
+	var list SkipList[Element]
 
-	var listPointer *SkipList
+	var listPointer *SkipList[Element]
 	listPointer.Insert(Element(0))
 	if _, ok := listPointer.Find(Element(0)); ok {
 		t.Fail()
 	}
 
-	list = New()
+	list = New[Element]()
 
 	if _, ok := list.Find(Element(0)); ok {
 		t.Fail()
@@ -78,7 +78,7 @@ func TestInsertAndFind(t *testing.T) {
 		}
 	}
 
-	list = New()
+	list = New[Element]()
 	// Test at the end of the list.
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
@@ -89,7 +89,7 @@ func TestInsertAndFind(t *testing.T) {
 		}
 	}
 
-	list = New()
+	list = New[Element]()
 	// Test at random positions in the list.
 	rList := rand.Perm(maxN)
 	for _, e := range rList {
@@ -105,12 +105,12 @@ func TestInsertAndFind(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 
-	var list SkipList
+	var list SkipList[Element]
 
 	// Delete on empty list
 	list.Delete(Element(0))
 
-	list = New()
+	list = New[Element]()
 
 	list.Delete(Element(0))
 	if !list.IsEmpty() {
@@ -128,7 +128,7 @@ func TestDelete(t *testing.T) {
 		t.Fail()
 	}
 
-	list = New()
+	list = New[Element]()
 	// Delete elements at the end of the list.
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
@@ -140,7 +140,7 @@ func TestDelete(t *testing.T) {
 		t.Fail()
 	}
 
-	list = New()
+	list = New[Element]()
 	// Delete elements at random positions in the list.
 	rList := rand.Perm(maxN)
 	for _, e := range rList {
@@ -158,26 +158,26 @@ func TestFindGreaterOrEqual(t *testing.T) {
 	eps := 0.00000001
 	maxNumber := 1000.0
 
-	var list SkipList
-	var listPointer *SkipList
+	var list SkipList[FloatElement]
+	var listPointer *SkipList[FloatElement]
 
 	// Test on empty list.
 	if _, ok := listPointer.FindGreaterOrEqual(FloatElement(0)); ok {
 		t.Fail()
 	}
 
-	list = NewEps(eps)
+	list = NewEps[FloatElement](eps)
 
 	for i := 0; i < maxN; i++ {
 		list.Insert(FloatElement(rand.Float64() * maxNumber))
 	}
 
-	first := float64(list.GetSmallestNode().GetValue().(FloatElement))
+	first := float64(list.GetSmallestNode().GetValue())
 
 	// Find the very first element. This is a special case in the implementation that needs testing!
 	if v, ok := list.FindGreaterOrEqual(FloatElement(first - 2.0*eps)); ok {
 		// We found an element different to the first one!
-		if math.Abs(float64(v.GetValue().(FloatElement))-first) > eps {
+		if math.Abs(float64(v.GetValue())-first) > eps {
 			t.Fail()
 		}
 	} else {
@@ -189,8 +189,8 @@ func TestFindGreaterOrEqual(t *testing.T) {
 		f := rand.Float64() * maxNumber
 		if v, ok := list.FindGreaterOrEqual(FloatElement(f)); ok {
 			// if f is v should be bigger than the element before
-			lastV := float64(list.Prev(v).GetValue().(FloatElement))
-			thisV := float64(v.GetValue().(FloatElement))
+			lastV := float64(list.Prev(v).GetValue())
+			thisV := float64(v.GetValue())
 			isFirst := math.Abs(first-thisV) <= eps
 			if !isFirst && lastV >= f {
 				fmt.Printf("PrevV: %.8f\n    f: %.8f\n\n", lastV, f)
@@ -203,7 +203,7 @@ func TestFindGreaterOrEqual(t *testing.T) {
 				t.Fail()
 			}
 		} else {
-			lastV := float64(list.GetLargestNode().GetValue().(FloatElement))
+			lastV := float64(list.GetLargestNode().GetValue())
 			// It is OK, to fail, as long as f is bigger than the last element.
 			if f <= lastV {
 				fmt.Printf("lastV: %.8f\n    f: %.8f\n\n", lastV, f)
@@ -215,7 +215,7 @@ func TestFindGreaterOrEqual(t *testing.T) {
 }
 
 func TestPrev(t *testing.T) {
-	list := New()
+	list := New[Element]()
 
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
@@ -229,7 +229,7 @@ func TestPrev(t *testing.T) {
 	for node != smallest {
 		node = list.Prev(node)
 		// Must always be incrementing here!
-		if node.value.(Element) >= lastNode.value.(Element) {
+		if node.value >= lastNode.value {
 			t.Fail()
 		}
 		// Next.Prev must always point to itself!
@@ -245,7 +245,7 @@ func TestPrev(t *testing.T) {
 }
 
 func TestNext(t *testing.T) {
-	list := New()
+	list := New[Element]()
 
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
@@ -259,7 +259,7 @@ func TestNext(t *testing.T) {
 	for node != largest {
 		node = list.Next(node)
 		// Must always be incrementing here!
-		if node.value.(Element) <= lastNode.value.(Element) {
+		if node.value <= lastNode.value {
 			t.Fail()
 		}
 		// Next.Prev must always point to itself!
@@ -275,7 +275,7 @@ func TestNext(t *testing.T) {
 }
 
 func TestChangeValue(t *testing.T) {
-	list := New()
+	list := New[ComplexElement]()
 
 	for i := 0; i < maxN; i++ {
 		list.Insert(ComplexElement{i, "value"})
@@ -295,7 +295,7 @@ func TestChangeValue(t *testing.T) {
 		if !ok {
 			t.Fail()
 		}
-		if f2.GetValue().(ComplexElement).S != "different value" {
+		if f2.GetValue().S != "different value" {
 			t.Fail()
 		}
 		if ok = list.ChangeValue(f2, ComplexElement{i + 5, "different key"}); ok {
@@ -305,7 +305,7 @@ func TestChangeValue(t *testing.T) {
 }
 
 func TestGetNodeCount(t *testing.T) {
-	list := New()
+	list := New[Element]()
 
 	for i := 0; i < maxN; i++ {
 		list.Insert(Element(i))
@@ -317,7 +317,7 @@ func TestGetNodeCount(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	list := NewSeed(1531889620180049576)
+	list := NewSeed[Element](1531889620180049576)
 
 	for i := 0; i < 20; i++ {
 		list.Insert(Element(i))
@@ -353,7 +353,7 @@ func TestString(t *testing.T) {
 }
 
 func TestInfiniteLoop(t *testing.T) {
-	list := New()
+	list := New[Element]()
 	list.Insert(Element(1))
 
 	if _, ok := list.Find(Element(2)); ok {
